@@ -1,0 +1,19 @@
+\section*{Formulacija}
+
+Namesto izpeljave gibalne enačbe iz II. Newtonovega zakona, kot je predlagano v predlogi in na predavanjih, sem izbral formulacijo z Lagrange-evo mehaniko. Tako izpeljem kinetični in potencialni energijski prispevek n-tega delčka vrvi v lokalnem polarnem koordinatnem sistemu iz česar dobim po vstavitvi energije 
+\begin{align}
+    L &= T - V, \\\nonumber
+    T &= \frac{1}{2}\; \sum_{i=1}^{N}\; m_i\; \left(\frac{1}{2}\; \sum_{j=1}^{N}\; \ddot\theta_j^2 + \sum_{i \neq j}\; \dot\theta_i\,\dot\theta_j\,\cos(\theta_i-\theta_j) \right), \\\nonumber
+    V &= - g\; \sum_{i=1}^{N}\; m_i\,l_i \, (N-i+1)\, \cos\theta_i,
+\end{align}
+v Euler-Lagrange-eve enačbe gibalne enačbe sistema. Te lahko pretvorimo v sicer poln sistem enačb s kotnimi pospeški kot neznankami, čigar velikost je enaka številu diskretnih delčkov in, kar je največja prednost metode, primeren za časovno integracijo.
+
+\begin{align}
+    &\sum_{j=1}^{N}\; \underbrace{m_i\,l_i\;c(i,j)\,\cos(\theta_i-\theta_j)}_{A_{i,j}}\, \underbrace{\ddot\theta_j}_{x_j} = \\\nonumber
+    &\underbrace{-\sum_{j=1}^{N} \left[m_i\,l_i\;c(i,j)\,\dot\theta_j^2\,\sin(\theta_i-\theta_j) \right] - m_i\,g\,(N-i+1)\,\sin\theta_i - \zeta\,\dot\theta_i}_{b_i}
+\end{align}
+kjer je $c(i,j) = N - \max(i,j) + 1$, $l_i$ dolžina in $m_i$ masa i-tega delčka vrvi, $\theta_i$ zasuk, $\dot\theta_i$ kotna hitrost in $\ddot\theta_i$ kotni pospešek v lokalnem polarnem koordinatenem sistemi i-tega delčka vrvi, $g$ velikost gravitacijskega pospeška, $N$ število diskretnih mas vrvi in $\zeta$ razmernik dušenja. Izpeljava teh enačb je povzeta po \cite{Taylor_Pendulum_2024} \cite{Assencio_double_pendulum} \cite{N_pendulum_1} \cite{N_pendulum_2}, pri čemer sem dodal model viskoznega dušenja zaradi stabilizacije simulacije, kot se bo izkazalo v sledečem poglavju.
+
+Za poenostavitev sem izbral konstantno prostorsko diskretizacijo: $l_i = l = L/N$, kjer je $L$ skupna dolžina vrvi.
+
+\section{Simulacija}

@@ -1,0 +1,46 @@
+\documentclass[11pt]{article}
+
+\usepackage[slovene]{babel}
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{indentfirst} %first paragraph indent
+\usepackage{float} %set figure locations
+\usepackage{caption} %set caption
+\usepackage{subcaption} %subfigures
+\usepackage{commath} %absolute value
+\usepackage{chemarrow} %besedilo na puščice
+\usepackage[dvipsnames]{xcolor} %barve besedila
+%\usepackage{movie15} %insert gif
+\usepackage{ amssymb } %pisava pisana
+\usepackage{chngcntr} %secton resets counter
+\usepackage{placeins}  % Provides \FloatBarrier command
+
+% set table and figure captions
+\captionsetup[table]{skip=10pt, singlelinecheck=false}
+\captionsetup[figure]{justification=centering}
+% table and figure formatting
+\renewcommand{\thetable}{\thesection.\arabic{figure}}
+%\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+% set counter
+\counterwithin{figure}{section}
+\counterwithin{equation}{section}
+\counterwithin{table}{section}
+
+\title{\textbf{11. Poročilo: Gibanje neraztegljive vrvice} \\ 
+
+\vspace{2mm} \large Modelska analiza II, 2023/24}
+\author{Aljaž Ravnikar, dipl.~inž.~str.~(UN), 23232128}
+
+\begin{document}
+\maketitle
+
+\input{11.nal}
+
+\bibliographystyle{IEEEtran_slo.bst}
+\bibliography{reference.bib}
+
+\end{document}

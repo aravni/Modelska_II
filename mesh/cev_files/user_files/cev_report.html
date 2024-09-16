@@ -1,0 +1,265 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head profile="http://www.ietf.org/rfc/rfc2731.txt">
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<script type="text/javascript">//
+
+function ShowRow(strRowId, strVisibility)
+{
+if(document.compatMode && document.compatMode == "CSS1Compat" && document.documentMode && document.documentMode == "8")
+{
+document.getElementById(strRowId).style.visibility = strVisibility;
+}
+else if(navigator.product == "Gecko" && navigator.productSub && navigator.productSub > "20041010")
+{
+document.getElementById(strRowId).style.visibility = strVisibility;
+}
+else if(strVisibility == "visible")
+{
+  // If IE < 11
+  if (document.all && document.compatMode && document.compatMode == "CSS1Compat" && !window.opera) {
+    document.getElementById(strRowId).style.display = "block";
+  }
+  // Else any other browser
+  else {
+    document.getElementById(strRowId).style.display = "table-row";
+  }
+}
+else if(strVisibility == "collapse")
+  {
+  document.getElementById(strRowId).style.display = "none";
+  };
+}
+
+function HideChildRows(strRowId)
+{
+  var element;
+  element = document.getElementById(strRowId + '.expander');
+  if (element) element.style.display = "inline";
+  element = document.getElementById(strRowId + '.contractor');
+  if (element) element.style.display = "none";
+  
+  var rows = document.getElementsByTagName('tr');
+  for (i=0; i<rows.length; i++)
+  {
+    if (rows[i].id != strRowId && rows[i].id.substring(0, strRowId.length) == strRowId) 
+	{
+	  ShowRow(rows[i].id, 'collapse');
+      var element;
+      element = document.getElementById(rows[i].id + '.expander');
+      if (element) element.style.display = "inline";
+      element = document.getElementById(rows[i].id + '.contractor');
+      if (element) element.style.display = "none";
+	}
+  }
+}
+
+function ShowChildRows(strRowId)
+{
+  document.getElementById(strRowId + '.expander').style.display = "none";
+  document.getElementById(strRowId + '.contractor').style.display = "inline";
+
+  var rows = document.getElementsByTagName('tr');
+  for (i=0; i<rows.length; i++)
+  {
+    if (rows[i].id != strRowId && rows[i].id.substring(0, strRowId.length) == strRowId && rows[i].id.lastIndexOf('.') == strRowId.length)
+	{
+	  ShowRow(rows[i].id, 'visible');
+	}
+  }
+}
+
+
+function init()
+{
+//document.forms[0].reset();
+
+}
+//</script>
+<style type="text/css">
+  body
+  {
+  font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+  color:#333333;
+  }
+  table
+  {
+  padding: 5px;
+  margin: 5px;
+  font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+  border-collapse:collapse;
+  }
+  td, th
+  {
+  font-size:0.75em;
+  border:1px solid #A9A9A9;
+  padding:3px 7px 2px 7px;
+  }
+  th
+  {
+  font-weight:bold;
+  font-size:0.9em;
+  text-align:left;
+  padding-top:5px;
+  padding-bottom:4px;
+  background-color:#A9A9A9;
+  color:#ffffff;
+  }
+  div
+  {
+  margin: 5px;
+  padding: 5px;
+  }
+  .table-label
+  {
+  font-size:1em;
+  margin: 5px;
+  font-weight:bold;
+  color:#333333;
+  }
+  .section-label
+  {
+  font-size:1em;
+  margin: 5px;
+  font-weight:bold;
+  color:#333333;
+  }
+  .text-label
+  {
+  margin: 5px;
+  font-size:1em;
+  font-weight:bold;
+  color:#333333;
+  }
+  .image-label
+  {
+  font-size:1em;
+  font-weight:bold;
+  color:#333333;
+  }
+  .link-label
+  {
+  font-size:1em;
+  font-weight:bold;
+  color:#333333;
+  }
+  .section-div
+  {
+  border: 1px #A9A9A9 solid; padding: 5px; margin: 5px; overflow: auto;
+  }
+  .title-section-div
+  {
+  border: 0px #A9A9A9 solid; padding: 5px; margin: 5px; overflow: hidden;
+  text-align: left;
+  }
+  .text-div
+  {
+  border: 0px #A9A9A9 solid; padding: 5px; margin: 5px;
+  }
+  .table-div
+  {
+  border: 0px #A9A9A9 solid; padding: 5px; margin: 5px;
+  }
+  .image-div
+  {
+  border: 0px #A9A9A9 solid; padding: 0px; margin: 5px;
+  }
+  .link-div
+  {
+  border: 0px #A9A9A9 solid; padding: 5px; margin: 5px;
+  }
+  .table-cell-warning
+  {
+  background-image:url('updateRequired.png');
+  background-repeat:no-repeat;
+  background-attachment:fixed;
+  background-position:center center;
+  }
+  .pre-notes
+  {
+  display: table-cell; 
+  font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+  }
+
+</style>
+</head>
+<body onload="init();">
+<div class="title-section-div">
+    <div class="image-div" style="max-width: 100%;">
+<div style="padding: 0px; margin: 0px; border: 0px #FF0000 solid; display:inline-block; max-width: 100%;">
+<div style="padding: 0px; margin: 0px; border: 0px #A9A9A9 solid; display:inline-block; max-width: 100%; overflow: auto;">
+<img alt="" src="cev_report_images/AnsysReportLogo.png" border="0"></div>
+<div style="text-align: center; width: 100%"></div>
+</div>
+</div>
+    <div class="table-div">
+<span class="table-label">Summary</span>
+<br>
+<table>
+<tr>
+<td>Project:</td><td style="&#10;                    background-color:White;&#10;                    color:Black;&#10;                    font-weight:bold;&#10;                    border: 1px Navy solid;&#10;                  ">cev</td>
+</tr>
+<tr>
+<td>Date:</td><td style="&#10;                    background-color:White;&#10;                    color:Black;&#10;                    font-weight:bold;&#10;                    border: 1px Navy solid;&#10;                  ">04/04/2024</td>
+</tr>
+<tr>
+<td>Time:</td><td style="&#10;                    background-color:White;&#10;                    color:Black;&#10;                    font-weight:bold;&#10;                    border: 1px Navy solid;&#10;                  ">19:15:08</td>
+</tr>
+<tr>
+<td>Product Version:</td><td style="&#10;                    background-color:White;&#10;                    color:Black;&#10;                    font-weight:bold;&#10;                    border: 1px Navy solid;&#10;                  ">2024 R1</td>
+</tr>
+<tr>
+<td>Last Saved Version:</td><td style="&#10;                    background-color:White;&#10;                    color:Black;&#10;                    font-weight:bold;&#10;                    border: 1px Navy solid;&#10;                  ">2024 R1</td>
+</tr>
+</table>
+</div>
+  <hr>
+</div>
+<div class="image-div" style="max-width: 99%;">
+<div style="text-align: left; width: 100%;font-weight:bold;">Project Schematic Pane</div>
+<div style="padding: 0px; margin: 0px; border: 0px #FF0000 solid; display:inline-block; max-width: 100%;">
+<div style="padding: 0px; margin: 0px; border: 1px #A9A9A9 solid; display:inline-block; max-width: 100%; overflow: auto;">
+<img alt="Project Schematic Pane" src="cev_report_images/ProjectSchematic.png" border="0"></div>
+</div>
+</div>
+<div class="table-div">
+<span class="table-label">Files</span>
+<br>
+<table>
+<tr>
+<th>Name</th><th>Size</th><th>Type</th><th>Date Modified</th><th>Location</th>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC7FD58">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC7FD58');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/generic.png">SYS.agdb</td><td style="">2 MB</td><td style="">Geometry File</td><td style="">04/04/2024 19:09:18</td><td style="">dp0\SYS\DM</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC7FEC0">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC7FEC0');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/mechanical.png">SYS.mshdb</td><td style="">3 MB</td><td style="">Mesh Database File</td><td style="">04/04/2024 19:15:07</td><td style="">dp0\global\MECH</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC80028">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC80028');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/Project.png">cev.wbpj</td><td style="">34 KB</td><td style="">Workbench Project File</td><td style="">04/04/2024 19:13:25</td><td style="">C:\Users\Aljaz 2\Desktop</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC80190">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC80190');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/DefaultFile.png">act.dat</td><td style="">259 KB</td><td style="">ACT Database</td><td style="">04/04/2024 19:13:23</td><td style="">dp0</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC802F8">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC802F8');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/DesignPoint.png">designPoint.wbdp</td><td style="">14 KB</td><td style="">Workbench Design Point File</td><td style="">04/04/2024 19:13:25</td><td style="">dp0</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC80460">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC80460');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/DefaultFile.png">AnsysReportLogo.png</td><td style="">5 KB</td><td style="">.png</td><td style="">05/11/2023 20:01:42</td><td style="">user_files\cev_report_images</td>
+</tr>
+<tr id="N000001F4FB2ACCD0N000001F4FCC805C8">
+<td style="&#10;            padding-left: 40px; text-indent: -35px;&#10;        "><img style="display: inline; margin-right: 5px;" height="1" width="9" src="cev_report_images/spacer.gif" onclick="javascript:HideChildRows('N000001F4FB2ACCD0N000001F4FCC805C8');"><img style="display: inline; margin-right: 5px; vertical-align: middle;" src="cev_report_images/DefaultFile.png">ProjectSchematic.png</td><td style="">7 KB</td><td style="">.png</td><td style="">04/04/2024 19:15:08</td><td style="">user_files\cev_report_images</td>
+</tr>
+</table>
+</div>
+<div class="section-div">
+<span class="section-label">Mesh</span>
+<br>
+  </div>
+<div class="section-div">
+<span class="section-label">Active Design Point</span>
+<br>
+  </div>
+<br>
+</body>
+</html>

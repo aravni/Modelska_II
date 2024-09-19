@@ -1,6 +1,0 @@
-# encoding: utf-8
-# 2024 R1
-SetScriptVersion(Version="24.1.144")
-Update()
-ExportReport(FilePath="C:/Users/Aljaz 2/Desktop/cev_files/user_files/cev_report.html")
-Save(Overwrite=True)

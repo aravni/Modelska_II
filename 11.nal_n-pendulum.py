@@ -58,16 +58,21 @@ def runge_kutta_4(f, t, y0, d, g, L, omega_0):
 
     return y
 @njit
-def post_process(phi, phi_dot):
+def post_process(phi, phi_dot, m, L, g, Nt):
+    N=len(m)
+    l=L/N
     sin_phi = np.sin(phi)
     cos_phi = np.cos(phi)
-    x = np.zeros((len(t), N))
-    y = np.zeros((len(t), N))
-    Ek = np.zeros(len(t))
-    Ep = np.zeros(len(t))
-    for t_i in range(len(t)):
+    x = np.zeros((Nt, N))
+    y = np.zeros((Nt, N))
+    length = np.zeros(Nt)
+    Ek = np.zeros(Nt)
+    Ep = np.zeros(Nt)
+    for t_i in range(Nt):
         x[t_i, :] = np.cumsum(sin_phi[t_i, :] * l)
         y[t_i, :] = -np.cumsum(cos_phi[t_i, :] * l)
+        length[t_i] += (x[t_i,0]**2 + y[t_i,0]**2)**0.5
+        for i in range(1,N): length[t_i] += ((x[t_i,i]-x[t_i,i-1])**2 + (y[t_i,i]-y[t_i,i-1])**2)**0.5
         Ej = np.zeros((2, N))
         for i in range(N):
             Ej[0, i] = np.sum(phi_dot[t_i, :i+1] * cos_phi[t_i, :i+1])
@@ -75,10 +80,10 @@ def post_process(phi, phi_dot):
             Ep[t_i] += m[i] * g * (L - l * cos_phi[t_i, i])
             Ek[t_i] += 0.5 * m[i] * l**2 * (Ej[0, i]**2 + Ej[1, i]**2)
     E = Ek + Ep
-    Ek /= E[0]
+    Ek /= E[0] #norm
     Ep /= E[0]
     E /= E[0]
-    return x,y, Ek,Ep,E
+    return x,y, Ek,Ep,E, length
 
 N = 10 #št. diskretizacije
 L = 1. #m, dolžina vrvice
@@ -96,9 +101,10 @@ m[:] = M/N # 1. konst. masa po vrvi
 
 ω_0 = np.sqrt(g/L) #nedušeno mat. nihalo
 ω_0d = ω_0 * np.sqrt(1-d**2) #dušeno mat. nihalo
-T = 5 * 2*np.pi/ω_0d #fiz čas - teoretično št. nihajev, s
+T = 3 * 2*np.pi/ω_0d #fiz čas - teoretično št. nihajev, s
 dt = 0.01 #s; za animacijo je OK 0.01
 t = np.arange(0,T,dt)
+print(len(t), T)
 
 #gibalne enačbe
 # @njit
@@ -137,7 +143,11 @@ def GE1(t, y): #NI OK!! po Yesilyurt
 
 #################################
 #ZP - 1
-phi_01=phi_0 = np.ones((N)) *np.deg2rad(-180) #konst. naklon, rad
+phi_01=phi_0 = np.ones((N)) *np.deg2rad(45) #konst. naklon, rad
+# phi_01=phi_0 = -l*np.linspace(0,N-1,N) + np.deg2rad(90) #skoraj parabola, rad
+# a, b=-0.011, np.deg2rad(45) #za N=20!
+# phi_0 = a * (np.arange(N) - N/2)**2 + b #parabola? -> potujoči val
+# phi_01=phi_0=phi_0-phi_0[0] #začetni kot je nič
 phi_dot_0 = np.zeros((N)) #rad/s
 y0 = np.concatenate((phi_0, phi_dot_0))
 
@@ -156,43 +166,7 @@ phi_dot = y_res[:,N:]
 # print(f't_sim = {(t2-t1):.1f}')
 
 # POST koordinate, energije
-# x=[]
-# y=[]
-# Ekt=[]
-# Ekr=[]
-# Ep=[]
-# for t_i in range(len(t)):
-#     xi = np.zeros((N))
-#     yi = np.zeros((N))
-#     Ei=Epi=0
-#     for i in range(0,N):
-#         xi[i] = xi[i-1] + np.sin(phi[t_i,i])*l
-#         yi[i] = yi[i-1] + np.cos(phi[t_i,i])*l
-#         # for j in range(N): #1. končna definicija = sist. enačb
-#         #     Ei += m[i]*0.5*phi_dot[t_i,j]**2*l**2
-#         #     if i!=j: Ei += m[i]*l**2*phi_dot[t_i,i]*phi_dot[t_i,j]*np.cos(phi_dot[t_i,i]-phi_dot[t_i,j])
-#         # Epi += g*m[i]*(L-(N-i+1)*np.cos(phi[t_i,i])*l)
-#         Ej=[0,0]
-#         for j in range(i+1): #2. osnovna def.
-#             Ej[0] += phi_dot[t_i,j]*np.cos(phi[t_i,j])
-#             Ej[1] += phi_dot[t_i,j]*np.sin(phi[t_i,j])
-#             Epi += m[i]*g*(L-l*np.cos(phi[t_i,j]))
-#         Ei += 0.5*m[i]*l**2*(Ej[0]**2 + Ej[1]**2)           
-#         # for j in range(N): #3. Yesilyurt
-#         #     for k in range(N):
-#         #         Ei += 0.5*m[i]*l*l*phi_dot[t_i,j]*phi_dot[t_i,k]*np.cos(phi[t_i,j]-phi[t_i,k])
-#     x.append(xi)
-#     y.append(-yi)
-#     Ekt.append(Ei) #translacija
-#     # Ep.append(g*np.sum(m*(L-yi)))
-#     Ep.append(Epi)
-# E1 = np.array(Ekt)+np.array(Ep)
-# x1 = np.array(x)
-# y1 = np.array(y)
-# Ekt1= np.array(Ekt)/E1[0]
-# Ep1= np.array(Ep)/E1[0]
-# E1=E1/E1[0] #normiranje
-x1,y1, Ekt1,Ep1,E1 = post_process(phi, phi_dot)
+x1,y1, Ekt1,Ep1,E1,length = post_process(phi, phi_dot, m,L,g,len(t))
 print('t_post = ', timer()-t2)
 
 #################################
@@ -201,8 +175,7 @@ print('t_post = ', timer()-t2)
 # m[-1] = M*100000
 
 #ZP - 2
-phi_02=phi_0 = np.ones((N)) *np.deg2rad(10) #konst. naklon, rad
-# phi_02=phi_0 = l*np.linspace(0,N-1,N) +np.deg2rad(45) #parabola, rad
+phi_02=phi_0 = np.ones((N)) *np.deg2rad(45) #konst. naklon, rad
 phi_dot_0 = np.zeros((N)) #rad/s
 y0 = np.concatenate((phi_0, phi_dot_0))
 
@@ -217,38 +190,46 @@ phi = y_res[:,:N]
 phi_dot = y_res[:,N:]
 
 # POST koordinate, energije
-x=[]
-y=[]
-Ekr=[]
-Ekt= []
-Ep=[]
-for t_i in range(len(t)):
-    xi = np.zeros((N))
-    yi = np.zeros((N))
-    Ei=Epi=0
-    for i in range(N):
-        xi[i] = xi[i-1] + np.sin(phi[t_i,i])*l
-        yi[i] = yi[i-1] + np.cos(phi[t_i,i])*l
-        Ej=[0,0]
-        for j in range(i+1): #2. osnovna def.
-            Ej[0] += phi_dot[t_i,j]*np.cos(phi[t_i,j])
-            Ej[1] += phi_dot[t_i,j]*np.sin(phi[t_i,j])
-            Epi += m[i]*g*(L-l*np.cos(phi[t_i,j]))
-        Ei += 0.5*m[i]*l**2*(Ej[0]**2 + Ej[1]**2)
-    x.append(xi)
-    y.append(-yi)
-    Ekt.append(Ei) #translacija
-    Ep.append(Epi)
-E2 = np.array(Ekt)+np.array(Ep)
-x2 = np.array(x)
-y2 = np.array(y)
-Ekt2=np.array(Ekt)/E2[0]
-Ep2=np.array(Ep)/E2[0]
-E2=E2/E2[0] #normiranje
+# x=[]
+# y=[]
+# Ekr=[]
+# Ekt= []
+# Ep=[]
+# for t_i in range(len(t)):
+#     xi = np.zeros((N))
+#     yi = np.zeros((N))
+#     Ei=Epi=0
+#     for i in range(N):
+#         xi[i] = xi[i-1] + np.sin(phi[t_i,i])*l
+#         yi[i] = yi[i-1] + np.cos(phi[t_i,i])*l
+#         Ej=[0,0]
+#         for j in range(i+1): #2. osnovna def.
+#             Ej[0] += phi_dot[t_i,j]*np.cos(phi[t_i,j])
+#             Ej[1] += phi_dot[t_i,j]*np.sin(phi[t_i,j])
+#             Epi += m[i]*g*(L-l*np.cos(phi[t_i,j]))
+#         Ei += 0.5*m[i]*l**2*(Ej[0]**2 + Ej[1]**2)
+#     x.append(xi)
+#     y.append(-yi)
+#     Ekt.append(Ei) #translacija
+#     Ep.append(Epi)
+# E2 = np.array(Ekt)+np.array(Ep)
+# x2 = np.array(x)
+# y2 = np.array(y)
+# Ekt2=np.array(Ekt)/E2[0]
+# Ep2=np.array(Ep)/E2[0]
+# E2=E2/E2[0] #normiranje
+x2,y2, Ekt2,Ep2,E2,length = post_process(phi, phi_dot, m,L,g,len(t))
 print('t_post = ', timer()-t2)
 
 ##################################
 # plotting
+fps0=30 #željeno
+frames_to_skip = int((1/dt)/fps0)
+fps=int(1/dt)//frames_to_skip
+video_time = len(t[::frames_to_skip]) * dt * frames_to_skip 
+print(frames_to_skip, fps)
+frames = range(0, len(t), frames_to_skip)
+
 def animate(i):
     thisx = np.concatenate(([0], x1[i]))
     thisy = np.concatenate(([0], y1[i]))
@@ -288,9 +269,10 @@ def animate2(i):
     time_text.set_text(time_template % (i*dt))
     return line1,line2, trace1,trace2, time_text
 
-fig, ax = plt.subplots(2,2, figsize=(12.8,7.2))
+fig, ax = plt.subplots(2,2, figsize=(12,9))
 ax[0,0].set_xlim((-L, L))
-ax[0,0].set_ylim((-L-l, L))
+if np.max(y2)>0: ax[0,0].set_ylim((-L, L))
+else: ax[0,0].set_ylim((-L, l))
 ax[0,0].set_aspect('equal')
 ax[0,0].axis('off')
 time_template = 't = %.1f s'
@@ -305,8 +287,9 @@ ax[1,0].set_xlabel('$x$')
 ax[1,0].set_ylabel('$t$')
 ax[1,1].set_xlabel('$t$')
 ax[1,1].set_ylabel('$E/E_0$')
-ax[0,1].set_ylim(-L-l,L)
-ax[1,0].set_xlim(-L-l,L+l)
+if np.max(y2)>0: ax[0,1].set_ylim((-L, L))
+else: ax[0,1].set_ylim((-L, l))
+ax[1,0].set_xlim(-L,L)
 ax[1,1].set_ylim(0,max(E1)*1.2)
 ax[0,1].set_xticks([])
 ax[1,0].set_yticks([])
@@ -320,16 +303,19 @@ E_t, = ax[1,1].plot([],[], 'r-',label='$E$')
 # Ekr_t, = ax[1,1].plot([],[], 'C1-',label='$E_{r}$')
 Ekt_t, = ax[1,1].plot([],[], 'b-',label='$E_{t}$')
 Ep_t, = ax[1,1].plot([],[], 'g-',label='$E_p$')
-ax[1,1].legend(loc='upper right',ncol=4)
+ax[1,1].legend(loc='upper right',ncol=3)
 
+# le ZP1
 ani = animation.FuncAnimation(
-    fig, animate, len(t), interval=dt, blit=True)
-plt.tight_layout()
+    fig, animate, frames=frames, interval=dt*frames_to_skip, blit=True)
+tt=timer()
+# ani.save(f'./slike/pendulum_N{N}_phi{np.rad2deg(phi_01[0]):.0f}_val.mp4',writer=animation.FFMpegWriter(fps=fps))
+print('t_save = ', timer()-tt)
 plt.show()
 
-# dva plota
-fig = plt.figure(figsize=(12.8,7.2)) #HD
-ax = fig.add_subplot(autoscale_on=False, xlim=(-L-l, L+l), ylim=(-L-l, L), aspect='equal')
+# dve vrvi
+fig = plt.figure(figsize=(7,5))
+ax = fig.add_subplot(autoscale_on=False, xlim=(-L-l, L+l), ylim=(-L-l, l), aspect='equal')
 ax.set_aspect('equal')
 ax.set_xlabel('$x$ [m]')
 ax.set_ylabel('$y$ [m]')
@@ -337,20 +323,57 @@ time_template = 't = %.1f s'
 time_text = ax.text(0.05, 0.05, '', transform=ax.transAxes)
 
 ax.set_title(f'$N=${N}, $\\zeta={d}$')
-line1, = ax.plot([], [], 'b.-', lw=2, label=f'{np.rad2deg(phi_01[0]):.0f}$^\circ$')
+line1, = ax.plot([], [], 'b.-', lw=2, label=f'{np.rad2deg(phi_01[0]):.0f}$^\circ$ parabola')
 trace1, = ax.plot([], [], 'b-', lw=1, alpha=0.5)
 line2, = ax.plot([], [], 'g.-', lw=2, label=f'{np.rad2deg(phi_02[0]):.0f}$^\circ$')
 trace2, = ax.plot([], [], 'g-', lw=1, alpha=0.5)
 ani = animation.FuncAnimation(
-    fig, animate2, len(t), interval=dt, blit=True)
+    fig, animate2,  frames=frames, interval=dt*frames_to_skip, blit=True)
 ax.legend(title='$\\varphi_0$',loc='upper right')
-
-plt.tight_layout()
-#ani.save('./pendulum.gif',writer=animation.PillowWriter(fps=60))#počasi, velik file
-#ani.save(f'./pendulum_N{N}_phi{np.rad2deg(phi_0[0]):.0f}.mp4',writer=animation.FFMpegWriter(fps=60))
+tt=timer()
+# ani.save(f'./slike/pendulum_N{N}_phi{np.rad2deg(phi_01[0]):.0f}-{np.rad2deg(phi_02[0]):.0f}_parabola.mp4',writer=animation.FFMpegWriter(fps=fps))
+print('t_save = ', timer()-tt)
 plt.show()
 
-#energije
+############# končno stanje ZP1
+i=0#-1
+fig, ax = plt.subplots(2,2, figsize=(7.2,7.2))
+ax[0,0].set_xlim((-L, L))
+if np.max(y2)>0: ax[0,0].set_ylim((-L, L))
+else: ax[0,0].set_ylim((-L, l))
+ax[0,0].set_aspect('equal')
+ax[0,0].axis('off')
+time_text = ax[0,0].text(0, 0, f'$t={t[i]:.1f}$ s', transform=ax[0,0].transAxes)
+ax[0,0].set_title(f'$N=${N}, $\\varphi_0=${np.rad2deg(phi_01[0]):.0f}$^\circ$, $\\zeta=${d}')
+ax[0,1].set_title('$y(t)$')
+ax[1,0].set_title('$x(t)$')
+ax[1,1].set_title('$E(t)$')
+ax[0,1].set_xlabel('$t$')
+ax[0,1].set_ylabel('$y$')
+ax[1,0].set_xlabel('$x$')
+ax[1,0].set_ylabel('$t$')
+ax[1,1].set_xlabel('$t$')
+ax[1,1].set_ylabel('$E/E_0$')
+if np.max(y2)>0: ax[0,1].set_ylim((-L, L))
+else: ax[0,1].set_ylim((-L, l))
+ax[1,0].set_xlim(-L,L)
+ax[1,1].set_ylim(0,max(E1)*1.2)
+ax[0,1].set_xticks([])
+ax[1,0].set_yticks([])
+ax[1,1].set_xticks([])
+line, = ax[0,0].plot(x1[i,:], y1[i,:], 'k.-', lw=2)
+trace, = ax[0,0].plot(x1[:,-1], y1[:,-1], 'k-', lw=1, alpha=0.3)
+y_loc, = ax[0,1].plot(t, y1[:,-1], 'k-',lw=1)
+x_loc, = ax[1,0].plot(x1[:,-1], t, 'k-',lw=1)
+E_t, = ax[1,1].plot(t,E1, 'r-',label='$E$')
+Ekt_t, = ax[1,1].plot(t,Ekt1, 'b-',label='$E_{t}$')
+Ep_t, = ax[1,1].plot(t,Ep1, 'g-',label='$E_p$')
+ax[1,1].legend(loc='upper right',ncol=3)
+plt.tight_layout()
+# plt.savefig(f'./slike/pendulum_N{N}_phi{np.rad2deg(phi_01[0]):.0f}_parabola.pdf')
+plt.show()
+
+# energije
 plt.plot(t, E1, 'r-',label='$E$')
 plt.plot(t, E2, 'r--')
 # plt.plot(t, Ekr1, 'b-',label='$E_r$')
@@ -359,7 +382,7 @@ plt.plot(t, Ekt1, 'C1-',label='$E_t$')
 plt.plot(t, Ekt2, 'C1--')
 plt.plot(t, Ep1, 'g-',label='$E_p$')
 plt.plot(t, Ep2, 'g--')
-legend = plt.legend(handles=[plt.Line2D([], [], color='k', linestyle='-', label=f'{np.rad2deg(phi_01[0]):.0f}$^\circ$'),
+legend = plt.legend(handles=[plt.Line2D([], [], color='k', linestyle='-', label=f'{np.rad2deg(phi_01[0]):.0f}$^\circ$ parabola'),
                              plt.Line2D([], [], color='k', linestyle='--', label=f'{np.rad2deg(phi_02[0]):.0f}$^\circ$')],
                      loc='upper center', title='$\\varphi_0$',ncol=2)
 plt.gca().add_artist(legend)
@@ -368,4 +391,5 @@ plt.xlabel('$t$ [s]')
 plt.ylabel('$E/E_0$')
 plt.title(f'$N=${N}, $\\Delta t=${dt}, $\zeta=${d}')
 plt.tight_layout()
+# plt.savefig(f'./slike/energije_N{N}_phi{np.rad2deg(phi_01[0]):.0f}-{np.rad2deg(phi_02[0]):.0f}_parabola.pdf')
 plt.show()

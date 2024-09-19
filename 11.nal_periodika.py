@@ -28,11 +28,15 @@ def post_process(phi, phi_dot, m, L, g, Nt):
     cos_phi = np.cos(phi)
     x = np.zeros((Nt, N))
     y = np.zeros((Nt, N))
+    length = np.zeros(Nt)
     Ek = np.zeros(Nt)
     Ep = np.zeros(Nt)
     for t_i in range(Nt):
         x[t_i, :] = np.cumsum(sin_phi[t_i, :] * l)
         y[t_i, :] = -np.cumsum(cos_phi[t_i, :] * l)
+        # length[t_i] = np.sum(np.diff(x[t_i])**2 + np.diff(y[t_i])**2) #faster
+        length[t_i] += (x[t_i,0]**2 + y[t_i,0]**2)**0.5
+        for i in range(1,N): length[t_i] += ((x[t_i,i]-x[t_i,i-1])**2 + (y[t_i,i]-y[t_i,i-1])**2)**0.5
         Ej = np.zeros((2, N))
         for i in range(N):
             Ej[0, i] = np.sum(phi_dot[t_i, :i+1] * cos_phi[t_i, :i+1])
@@ -40,10 +44,10 @@ def post_process(phi, phi_dot, m, L, g, Nt):
             Ep[t_i] += m[i] * g * (L - l * cos_phi[t_i, i])
             Ek[t_i] += 0.5 * m[i] * l**2 * (Ej[0, i]**2 + Ej[1, i]**2)
     E = Ek + Ep
-    Ek /= E[0]
+    Ek /= E[0] #norm
     Ep /= E[0]
     E /= E[0]
-    return x,y, Ek,Ep,E
+    return x,y, Ek,Ep,E, length
 
 N = 10 #št. diskretizacije
 L = 1. #m, dolžina vrvice
@@ -124,7 +128,7 @@ if __name__ == '__main__':
     # E=E/E[0] #normiranje
 
     # FASTER POST LOOP !!!
-    x,y, Ek,Ep,E = post_process(phi, phi_dot, m,L,g,len(t))
+    x,y, Ek,Ep,E,length = post_process(phi, phi_dot, m,L,g,len(t))
     print('t_post = ', timer()-t2)
 
     # FFT
@@ -134,215 +138,232 @@ if __name__ == '__main__':
     okno = windows.hann(Nt)
     f = np.fft.rfftfreq(Nt, d=dt)
 
-    # ############### 1. prva masa
-    # index=0
-    # X = np.fft.rfft((x[:,index]-np.average(x[:,index]))*okno)*2/Nt
-    # Y = np.fft.rfft((y[:,index]-np.average(y[:,index]))*okno)*2/Nt
-    # Ep_f = np.fft.rfft(Ep*okno)*2/Nt
-    # Ek_f = np.fft.rfft(Ek*okno)*2/Nt
-    # E_f = np.fft.rfft(E*okno)*2/Nt
-    # peaks_x, dict = find_peaks(np.abs(X), height=1e-6, distance=dist, prominence=1e-4)
-    # heights_x = dict['peak_heights']
-    # peaks_y, dict = find_peaks(np.abs(Y), height=1e-6, distance=dist, prominence=1e-4)
-    # heights_y = dict['peak_heights']
-    # peaks_Ep, dict = find_peaks(np.abs(Ep_f), height=1e-6, distance=dist, prominence=1e-4)
-    # heights_Ep = dict['peak_heights']
-    # peaks_Ek, dict = find_peaks(np.abs(Ek_f), height=1e-6, distance=dist, prominence=1e-4)
-    # heights_Ek = dict['peak_heights']
-    # peaks_E, dict = find_peaks(np.abs(E_f), height=1e-6, distance=dist, prominence=1e-4)
-    # heights_E = dict['peak_heights']
+    ############### 1. prva masa
+    index=0
+    X = np.fft.rfft((x[:,index]-np.average(x[:,index]))*okno)*2/Nt
+    Y = np.fft.rfft((y[:,index]-np.average(y[:,index]))*okno)*2/Nt
+    Ep_f = np.fft.rfft(Ep*okno)*2/Nt
+    Ek_f = np.fft.rfft(Ek*okno)*2/Nt
+    E_f = np.fft.rfft(E*okno)*2/Nt
+    peaks_x, dict = find_peaks(np.abs(X), height=1e-6, distance=dist, prominence=1e-4)
+    heights_x = dict['peak_heights']
+    peaks_y, dict = find_peaks(np.abs(Y), height=1e-6, distance=dist, prominence=1e-4)
+    heights_y = dict['peak_heights']
+    peaks_Ep, dict = find_peaks(np.abs(Ep_f), height=1e-6, distance=dist, prominence=1e-4)
+    heights_Ep = dict['peak_heights']
+    peaks_Ek, dict = find_peaks(np.abs(Ek_f), height=1e-6, distance=dist, prominence=1e-4)
+    heights_Ek = dict['peak_heights']
+    peaks_E, dict = find_peaks(np.abs(E_f), height=1e-6, distance=dist, prominence=1e-4)
+    heights_E = dict['peak_heights']
 
-    # try: N_p=int(max(peaks_x.max(), peaks_y.max())*2)
-    # except: N_p=Nt//1000
-    # plt.axvline(ω_0d/2/np.pi, c='k', ls='--', label='$\\omega_{0d}$')
-    # plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot\\omega_{0d}$')
-    # plt.plot(f[:N_p],np.abs(X)[:N_p], 'C0',label=f'$x$')
-    # plt.plot(f[:N_p],np.abs(Y)[:N_p], 'C2', label=f'$y$')
-    # plt.plot(f[:N_p],np.abs(Ep_f)[:N_p], 'C1', label=f'$E_p$')
-    # plt.plot(f[:N_p],np.abs(Ek_f)[:N_p], 'C3', label=f'$E_k$')
-    # plt.plot(f[:N_p],np.abs(E_f)[:N_p], 'C4--', label=f'$E$')
-    # plt.plot(f[peaks_x], heights_x, 'C0o')
-    # plt.plot(f[peaks_y], heights_y, 'C2o')
-    # plt.plot(f[peaks_Ep], heights_Ep, 'C1o')
-    # plt.plot(f[peaks_Ek], heights_Ek, 'C3o')
-    # plt.plot(f[peaks_E], heights_E, 'C4o')
+    try: N_p=int(max(peaks_x.max(), peaks_y.max())*2)
+    except: N_p=Nt//100
+    plt.axvline(ω_0d/2/np.pi, c='k', ls='--', label='$\\omega_{0d}$')
+    plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot\\omega_{0d}$')
+    plt.plot(f[:N_p],np.abs(X)[:N_p], 'C0',label=f'$x$')
+    plt.plot(f[:N_p],np.abs(Y)[:N_p], 'C2', label=f'$y$')
+    plt.plot(f[:N_p],np.abs(Ep_f)[:N_p], 'C1', label=f'$E_p$')
+    plt.plot(f[:N_p],np.abs(Ek_f)[:N_p], 'C3', label=f'$E_k$')
+    plt.plot(f[:N_p],np.abs(E_f)[:N_p], 'C4--', label=f'$E$')
+    plt.plot(f[peaks_x], heights_x, 'C0o')
+    plt.plot(f[peaks_y], heights_y, 'C2o')
+    plt.plot(f[peaks_Ep], heights_Ep, 'C1o')
+    plt.plot(f[peaks_Ek], heights_Ek, 'C3o')
+    plt.plot(f[peaks_E], heights_E, 'C4o')
 
-    # plt.legend()
-    # plt.yscale('log')
-    # plt.xlabel('$f$ [Hz]')
-    # plt.ylabel('$|X|$')
-    # plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}, \\zeta={d:.0E}, N_{{all}}={N}, N_i={index+1}$')
-    # plt.tight_layout()
-    # plt.show()
+    plt.legend()
+    plt.yscale('log')
+    plt.xlabel('$f$ [Hz]')
+    plt.ylabel('$|X|$')
+    plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}°, \\zeta={d:.0E}, N_{{all}}={N}, N_i={index+1}$')
+    plt.tight_layout()
+    plt.savefig(f'./slike/fft_lastne_Ni{index+1}_phi{np.rad2deg(phi_0[0]):n}_N{N}.pdf')
+    plt.show()
 
-    # ############### 2. zadnja masa
-    # index=N-1
-    # X = np.fft.rfft((x[:,index]-np.average(x[:,index]))*okno)*2/Nt
-    # Y = np.fft.rfft((y[:,index]-np.average(y[:,index]))*okno)*2/Nt
-    # Ep_f = np.fft.rfft(Ep*okno)*2/Nt
-    # Ek_f = np.fft.rfft(Ek*okno)*2/Nt
-    # E_f = np.fft.rfft(E*okno)*2/Nt
-    # peaks_x, dict = find_peaks(np.abs(X), height=1e-6, distance=dist, prominence=1e-6)
-    # heights_x = dict['peak_heights']
-    # peaks_y, dict = find_peaks(np.abs(Y), height=1e-6, distance=dist, prominence=1e-6)
-    # heights_y = dict['peak_heights']
-    # peaks_Ep, dict = find_peaks(np.abs(Ep_f), height=1e-6, distance=dist, prominence=1e-6)
-    # heights_Ep = dict['peak_heights']
-    # peaks_Ek, dict = find_peaks(np.abs(Ek_f), height=1e-6, distance=dist, prominence=1e-6)
-    # heights_Ek = dict['peak_heights']
-    # peaks_E, dict = find_peaks(np.abs(E_f), height=1e-6, distance=dist, prominence=1e-6)
-    # heights_E = dict['peak_heights']
+    ############### 2. zadnja masa
+    index=N-1
+    X = np.fft.rfft((x[:,index]-np.average(x[:,index]))*okno)*2/Nt
+    Y = np.fft.rfft((y[:,index]-np.average(y[:,index]))*okno)*2/Nt
+    Ep_f = np.fft.rfft(Ep*okno)*2/Nt
+    Ek_f = np.fft.rfft(Ek*okno)*2/Nt
+    E_f = np.fft.rfft(E*okno)*2/Nt
+    peaks_x, dict = find_peaks(np.abs(X), height=1e-6, distance=dist, prominence=1e-6)
+    heights_x = dict['peak_heights']
+    peaks_y, dict = find_peaks(np.abs(Y), height=1e-6, distance=dist, prominence=1e-6)
+    heights_y = dict['peak_heights']
+    peaks_Ep, dict = find_peaks(np.abs(Ep_f), height=1e-6, distance=dist, prominence=1e-6)
+    heights_Ep = dict['peak_heights']
+    peaks_Ek, dict = find_peaks(np.abs(Ek_f), height=1e-6, distance=dist, prominence=1e-6)
+    heights_Ek = dict['peak_heights']
+    peaks_E, dict = find_peaks(np.abs(E_f), height=1e-6, distance=dist, prominence=1e-6)
+    heights_E = dict['peak_heights']
 
-    # try: N_p=int(max(peaks_x.max(), peaks_y.max())*2)
-    # except: N_p=Nt//1000
-    # plt.axvline(ω_0d/2/np.pi, c='k', ls='--', label='$\\omega_{0d}$')
-    # plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot\\omega_{0d}$')
-    # plt.plot(f[:N_p],np.abs(X)[:N_p], 'C0',label=f'$x$')
-    # plt.plot(f[:N_p],np.abs(Y)[:N_p], 'C2', label=f'$y$')
-    # plt.plot(f[:N_p],np.abs(Ep_f)[:N_p], 'C1', label=f'$E_p$')
-    # plt.plot(f[:N_p],np.abs(Ek_f)[:N_p], 'C3', label=f'$E_k$')
-    # plt.plot(f[:N_p],np.abs(E_f)[:N_p], 'C4--', label=f'$E$')
-    # plt.plot(f[peaks_x], heights_x, 'C0o')
-    # plt.plot(f[peaks_y], heights_y, 'C2o')
-    # plt.plot(f[peaks_Ep], heights_Ep, 'C1o')
-    # plt.plot(f[peaks_Ek], heights_Ek, 'C3o')
-    # plt.plot(f[peaks_E], heights_E, 'C4o')
+    try: N_p=int(max(peaks_x.max(), peaks_y.max())*2)
+    except: N_p=Nt//1000
+    plt.axvline(ω_0d/2/np.pi, c='k', ls='--', label='$\\omega_{0d}$')
+    plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot\\omega_{0d}$')
+    plt.plot(f[:N_p],np.abs(X)[:N_p], 'C0',label=f'$x$')
+    plt.plot(f[:N_p],np.abs(Y)[:N_p], 'C2', label=f'$y$')
+    plt.plot(f[:N_p],np.abs(Ep_f)[:N_p], 'C1', label=f'$E_p$')
+    plt.plot(f[:N_p],np.abs(Ek_f)[:N_p], 'C3', label=f'$E_k$')
+    plt.plot(f[:N_p],np.abs(E_f)[:N_p], 'C4--', label=f'$E$')
+    plt.plot(f[peaks_x], heights_x, 'C0o')
+    plt.plot(f[peaks_y], heights_y, 'C2o')
+    plt.plot(f[peaks_Ep], heights_Ep, 'C1o')
+    plt.plot(f[peaks_Ek], heights_Ek, 'C3o')
+    plt.plot(f[peaks_E], heights_E, 'C4o')
 
-    # plt.legend()
-    # plt.yscale('log')
-    # plt.xlabel('$f$ [Hz]')
-    # plt.ylabel('$|X|$')
-    # plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}, \\zeta={d:.0E}, N_{{all}}={N}, N_i={index+1}$')
-    # plt.tight_layout()
-    # plt.show()
+    plt.legend()
+    plt.yscale('log')
+    plt.xlabel('$f$ [Hz]')
+    plt.ylabel('$|X|$')
+    plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}°, \\zeta={d:.0E}, N_{{all}}={N}, N_i={index+1}$')
+    plt.tight_layout()
+    # plt.savefig(f'./slike/fft_lastne_Ni{index+1}_phi{np.rad2deg(phi_0[0]):n}_N{N}.pdf')
+    plt.show()
 
-    # ################## 3. lastne freq po dolžini
-    # ang_x=[]
-    # ang_y=[]
-    # px=[]
-    # py=[]
-    # peaks_x=np.zeros((N,5)) #max 5 lastnih frek
-    # peaks_y=np.zeros((N,5)) #max 5 lastnih frek
-    # for i in range(N):
-    #     X=np.fft.rfft((x[:,i]-np.average(x[:,i]))*okno)*2/Nt
-    #     Y=np.fft.rfft((y[:,i]-np.average(y[:,i]))*okno)*2/Nt
-    #     ang_x.append(np.angle(X))
-    #     ang_y.append(np.angle(Y))
-    #     X = np.abs(X)
-    #     Y = np.abs(Y)
-    #     max_px = np.argmax(X[5:])
-    #     max_py = np.argmax(Y[5:])
-    #     px.append(f[5+max_px]) #le prva freq
-    #     py.append(f[5+max_py])
-    #     peaks, _ = find_peaks(X, height=1e-6, distance=dist, prominence=1e-6)
-    #     p_xi = peaks[peaks>5]
-    #     peaks, _ = find_peaks(Y, height=1e-6, distance=dist, prominence=1e-6)
-    #     p_yi = peaks[peaks>5]
-    #     Nf = min([len(p_xi),5])
-    #     peaks_x[i,:Nf] = f[p_xi[:Nf]] #prvih Nf lastnih f
-    #     Nf = min([len(p_yi),5])
-    #     peaks_y[i,:Nf] = f[p_yi[:Nf]] #prvih Nf lastnih f
-
-    # # fig,ax=plt.subplots()
-    # # ax.plot(px, 'C0.-', label='$x$')
-    # # # ax.axhline(ω_0d/2/np.pi, c='C0', ls='--', label='$f_{0d}$')
-    # # ax.set_ylabel('x-kordinata $f$', c='C0')
-    # # ax.set_xlabel('$N_i$')
-    # # ax.tick_params(axis='y', labelcolor='C0')
-    # # ax1=plt.twinx(ax)
-    # # ax1.plot(py, 'C1.-', label='$y$')
-    # # # ax1.axhline(ω_0d/np.pi, c='C1', ls='--', label='$2\cdot f_{0d}$')
-    # # ax1.set_ylabel('y-kordinata $f$', c='C1')
-    # # ax1.tick_params(axis='y', labelcolor='C1')
-    # # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    # # alignYaxes([ax,ax1])
-    # # plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}, \\zeta={d:.0E}, N_{{all}}={N}$')
-    # # plt.tight_layout()
-    # # plt.show()
+    ################## 3. lastne freq po dolžini
+    ang_x=[]
+    ang_y=[]
+    px=[]
+    py=[]
+    peaks_x=np.zeros((N,5)) #max 5 lastnih frek
+    peaks_y=np.zeros((N,5)) #max 5 lastnih frek
+    for i in range(N):
+        X=np.fft.rfft((x[:,i]-np.average(x[:,i]))*okno)*2/Nt
+        Y=np.fft.rfft((y[:,i]-np.average(y[:,i]))*okno)*2/Nt
+        ang_x.append(np.angle(X))
+        ang_y.append(np.angle(Y))
+        X = np.abs(X)
+        Y = np.abs(Y)
+        max_px = np.argmax(X[5:])
+        max_py = np.argmax(Y[5:])
+        px.append(f[5+max_px]) #le prva freq
+        py.append(f[5+max_py])
+        peaks, _ = find_peaks(X, height=1e-6, distance=dist, prominence=1e-6)
+        p_xi = peaks[peaks>5]
+        peaks, _ = find_peaks(Y, height=1e-6, distance=dist, prominence=1e-6)
+        p_yi = peaks[peaks>5]
+        Nf = min([len(p_xi),5])
+        peaks_x[i,:Nf] = f[p_xi[:Nf]] #prvih Nf lastnih f
+        Nf = min([len(p_yi),5])
+        peaks_y[i,:Nf] = f[p_yi[:Nf]] #prvih Nf lastnih f
 
     # fig,ax=plt.subplots()
-    # c=['C0', 'C1', 'C2', 'C3', 'C4']
-    # for i in range(peaks_y.shape[1]):
-    #     if np.any(peaks_x[:, i] != 0) and np.any(peaks_y[:, i] != 0):  # Only plot if not all values are zero
-    #         plt.plot(peaks_x[:,i],'.-', c=c[i], label=f'{i+1}.')
-    #         plt.plot(peaks_y[:,i],'.--', c=c[i])
-    # ax.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
-
-    # plt.legend(title='lastne frekvence')
-    # plt.title('polna črta: x-smer, prekinjena: y-smer')
-    # plt.xlabel('$N_i$')
-    # plt.ylabel('$f$ [Hz]')
+    # ax.plot(px, 'C0.-', label='$x$')
+    # # ax.axhline(ω_0d/2/np.pi, c='C0', ls='--', label='$f_{0d}$')
+    # ax.set_ylabel('x-kordinata $f$', c='C0')
+    # ax.set_xlabel('$N_i$')
+    # ax.tick_params(axis='y', labelcolor='C0')
+    # ax1=plt.twinx(ax)
+    # ax1.plot(py, 'C1.-', label='$y$')
+    # # ax1.axhline(ω_0d/np.pi, c='C1', ls='--', label='$2\cdot f_{0d}$')
+    # ax1.set_ylabel('y-kordinata $f$', c='C1')
+    # ax1.tick_params(axis='y', labelcolor='C1')
     # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # alignYaxes([ax,ax1])
+    # plt.title(f'$\\varphi_0 = {np.rad2deg(phi_0[0]):n}°, \\zeta={d:.0E}, N_{{all}}={N}$')
+    # plt.tight_layout()
+    # # plt.savefig(f'./slike/1.lastna_od_N.pdf')
     # plt.show()
 
-    # # fazni zamik v točki
-    # i=N-1
-    # plt.plot(f[:1000], ang_x[i][:1000], '-', label='$x$', alpha=0.6)
-    # plt.plot(f[:1000], ang_y[i][:1000], '-', label='$y$', alpha=0.6)
-    # plt.axvline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
-    # plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot f_{0d}$')
-    # plt.yticks([-np.pi,0,np.pi], labels=['$-\pi$', '$0$', '$\pi$'])
-    # plt.xlabel('$f$ Hz')
-    # plt.ylabel('fazni zamik $\\varphi$')
-    # plt.legend(loc='upper right')
-    # plt.tight_layout()
-    # plt.show()
+    fig,ax=plt.subplots()
+    c=['C0', 'C1', 'C2', 'C3', 'C4']
+    for i in range(peaks_y.shape[1]):
+        if np.any(peaks_x[:, i] != 0) and np.any(peaks_y[:, i] != 0):  # Only plot if not all values are zero
+            plt.plot(peaks_x[:,i],'.-', c=c[i], label=f'{i+1}.')
+            plt.plot(peaks_y[:,i],'.--', c=c[i])
+    ax.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
+
+    plt.legend(title='lastne frekvence')
+    plt.title('polna črta: x-smer, prekinjena: y-smer')
+    plt.xlabel('$N_i$')
+    plt.ylabel('$f$ [Hz]')
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # plt.savefig(f'./slike/vse_lastne_od_lege_phi{np.rad2deg(phi_0[0]):n}_N{N}.pdf')
+    plt.show()
+
+    # fazni zamik v točki
+    i=N-1
+    plt.plot(f[:300], ang_x[i][:300], '-', label='$x$', alpha=0.6)
+    plt.plot(f[:300], ang_y[i][:300], '-', label='$y$', alpha=0.6)
+    plt.axvline(ω_0d/2/np.pi, c='k', ls='--', label='$f_{0d}$')
+    plt.axvline(ω_0d/np.pi, c='k', ls=':', label='$2\cdot f_{0d}$')
+    plt.yticks([-np.pi,0,np.pi], labels=['$-\pi$', '$0$', '$\pi$'])
+    plt.xlabel('$f$ Hz')
+    plt.ylabel('fazni zamik $\\varphi$')
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.savefig(f'./slike/fazni zamik_N{i+1}_phi{np.rad2deg(phi_0[0]):n}_N{N}.pdf')
+    plt.show()
 
     # prva lastna freq odvisno od diskretizacije on ZP
     ###########################################################
+    # ########## 1. N_list
+    # N_list = np.linspace(1, 30, 15, dtype=int)
+    # x_list=np.zeros((len(N_list)))
+    # L_napaka=np.zeros((len(N_list),Nt))
+    # print('simulacija za diskretizacije N:')
+    # input(N_list)
+    # for i,N in enumerate(N_list):
+    #     t1 = timer()
+    #     l = L/N #konstantna diskretizacija!
+    #     m = np.zeros(N)
+    #     m[:] = M/N # 1. konst. masa po vrvi
 
-    N_list = np.linspace(1, 20, 10, dtype=int)
-    x_list=np.zeros((len(N_list)))
-    print('simulacija za diskretizacije N:')
-    input(N_list)
-    for i,N in enumerate(N_list):
-        t1 = timer()
-        l = L/N #konstantna diskretizacija!
-        m = np.zeros(N)
-        m[:] = M/N # 1. konst. masa po vrvi
+    #     phi_0 = np.ones((N)) * np.deg2rad(45) #ZP!
+    #     phi_dot_0 = np.zeros((N)) #rad/s
+    #     y0 = np.concatenate((phi_0, phi_dot_0))
 
-        phi_0 = np.ones((N)) * np.deg2rad(45)
-        phi_dot_0 = np.zeros((N)) #rad/s
-        y0 = np.concatenate((phi_0, phi_dot_0))
+    #     res = solve_ivp(GE,(0,T),y0,method='RK45',t_eval=t)
+    #     y_res = res.y.T
+    #     phi = y_res[:,:N]
+    #     phi_dot = y_res[:,N:]
 
-        res = solve_ivp(GE,(0,T),y0,method='RK45',t_eval=t)
-        y_res = res.y.T
-        phi = y_res[:,:N]
-        phi_dot = y_res[:,N:]
+    #     x,y, Ek,Ep,E, length = post_process(phi, phi_dot, m,L,g,len(t))
+    #     L_napaka[i] = np.abs(length-L)
+    #     X = np.abs(np.fft.rfft((x[:,-1]-np.average(x[:,-1]))*okno)*2/Nt) #zadnja masa!
+    #     x_list[i] = f[5+np.argmax(X[5:])] #1. lastna
+    #     t2 = timer()
+    #     print(f'N = {N}, t_sim = {(t2-t1):.1f}')
 
-        x,y, Ek,Ep,E = post_process(phi, phi_dot, m,L,g,len(t))
-        X = np.abs(np.fft.rfft((x[:,-1]-np.average(x[:,-1]))*okno)*2/Nt) #zadnja masa!
-        x_list[i] = f[5+np.argmax(X[5:])] #1. lastna
-        t2 = timer()
-        print(f'N = {N}, t_sim = {(t2-t1):.1f}')
+    # def fun(x, A, B):
+    #     return A + B* np.log10(x) #np.emath.logn(base, x)
+    # def fun(x, A, B, C): #sigmoid
+    #     return A / (1 + B * np.exp(-C * x))
+    # (A, B, C),_ = curve_fit(fun, N_list, x_list, p0=(1,1,1), method='lm', maxfev=10000)
+    # xx=np.inf
+    # x_ex = fun(xx, A, B,C)
+    # x=np.linspace(N_list[0], N_list[-1],100)
+    # x_f=fun(x,A,B,C)
+    # plt.plot(N_list, x_list, '.-')
+    # plt.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
+    # plt.plot(x,x_f, 'k-', label=f'$f(x) = \\frac{{{A:.1E}}}{{1+{B:.1E} \cdot \exp(-{C:.1E} x)}}$')
+    # plt.axhline(x_ex, c='k', ls='--', label=f'$f(\infty) =${x_ex:.3f}')
+    # plt.axhline(x_list[-1], c='C0', ls='--', label=f'{x_list[-1]:.3f}')
+    # plt.xlabel('$N_{all}$')
+    # plt.ylabel('1. lastna $f$ v x smeri [Hz]')
+    # plt.legend(loc='best')
+    # plt.tight_layout()
+    # plt.savefig(f'./slike/konv_1.lastna.pdf')
+    # plt.show()
 
-    def fun(x, A, B):
-        return A + B* np.log10(x) #np.emath.logn(base, x)
-    def fun(x, A, B, C): #sigmoid
-        return A / (1 + B * np.exp(-C * x))
-    (A, B, C),_ = curve_fit(fun, N_list, x_list, p0=(1,1,1), method='lm', maxfev=10000)
-    xx=np.inf
-    x_ex = fun(xx, A, B,C)
-    x=np.linspace(N_list[0], N_list[-1],100)
-    x_f=fun(x,A,B,C)
-    plt.plot(N_list, x_list, '.-')
-    plt.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
-    plt.plot(x,x_f, 'k-', label=f'$f(x) = \\frac{{{A}}}{{1+{B} \exp(-{C} x)}}$')
-    plt.axhline(x_ex, c='k', ls='--', label=f'$f(\infty)$')
-    plt.xlabel('$N_{all}$')
-    plt.ylabel('1. lastna $f$ [Hz]')
-    plt.legend(loc='upper left', bbox_to_anchor=(0,0.9))
-    plt.tight_layout()
-    plt.xscale('log')
-    plt.show()
+    # #napaka dolžine
+    # plt.errorbar(N_list, np.average(L_napaka, axis=1), np.std(L_napaka, axis=1)/2, fmt='o', ls='-', c='k', capsize=10)
+    # plt.xlabel('$N$')
+    # plt.ylabel('napaka dolžine vrvi $\\frac{|L-\sum_{i=1}^N l_i|} {L}$ [\%]')
+    # plt.tight_layout()
+    # plt.savefig(f'./slike/napaka_L_od_N.pdf')
+    # plt.show()
 
-    # zač kot v deg
+    ############ 2. zač kot v deg
     N=10
     l = L/N #konstantna diskretizacija!
     m = np.zeros(N)
     m[:] = M/N # 1. konst. masa po vrvi
-    phi_list = np.linspace(0,180, 10, dtype=int)
+    phi_list = np.linspace(1,180, 20, dtype=int)
     x_list=np.zeros((len(phi_list),N))
+    L_napaka=np.zeros((len(phi_list),Nt))
     print('simulacija za začetne kote v deg:')
     input(phi_list)
     for i,phi_i in enumerate(phi_list):
@@ -356,18 +377,28 @@ if __name__ == '__main__':
         phi = y_res[:,:N]
         phi_dot = y_res[:,N:]
 
-        x,y, Ek,Ep,E = post_process(phi, phi_dot, m,L,g,len(t))
+        x,y, Ek,Ep,E,length = post_process(phi, phi_dot, m,L,g,len(t))
+        L_napaka[i] = np.abs(length-L)
         for j in range(N):
             X = np.abs(np.fft.rfft((x[:,j]-np.average(x[:,j]))*okno)*2/Nt)
             x_list[i,j] = f[5+np.argmax(X[5:])] #1. lastna
         t2 = timer()
         print(f'phi_0 = {phi_i}, t_sim = {(t2-t1):.1f}')
 
-    for i in [0,N//2,N]:
+    for i in [0,N//2,N-1]:
         plt.plot(phi_list, x_list[:,i], '.-', label=f'$N_i={i+1}$')
-    plt.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
+    # plt.axhline(ω_0d/2/np.pi, c='k', ls=':', label='$f_{0d}$')
     plt.legend(title='delec na vrvi')
     plt.xlabel('$\\varphi_0$ [deg]')
-    plt.ylabel('1. lastna $f$ [Hz]')
+    plt.ylabel('1. lastna $f$ v x smeri [Hz]')
     plt.tight_layout()
+    plt.savefig(f'./slike/konv_phi.pdf')
+    plt.show()
+
+    #napaka dolžine
+    plt.errorbar(phi_list, np.average(L_napaka, axis=1), np.std(L_napaka, axis=1)/2, fmt='o', ls='-', c='k', capsize=10)
+    plt.xlabel('$\\varphi_0$ [deg]')
+    plt.ylabel('napaka dolžine vrvi $\\frac{|L-\sum_{i=1}^N l_i|} {L}$ [\%]')
+    plt.tight_layout()
+    plt.savefig(f'./slike/napaka_L_od_phi.pdf')
     plt.show()

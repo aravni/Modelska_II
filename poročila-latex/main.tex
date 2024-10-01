@@ -30,7 +30,24 @@
 \counterwithin{equation}{section}
 \counterwithin{table}{section}
 
-\title{\textbf{11. Poročilo: Gibanje neraztegljive vrvice} \\ 
+\newcommand{\fig}[5]{
+\begin{figure}[#1]
+\centering
+\includegraphics[width=#2\textwidth]{#3}
+\caption{#4}
+\label{#5}
+\end{figure}
+}
+\newcommand{\subfig}[4]{
+\begin{subfigure}{#1\textwidth}
+\centering
+\includegraphics[width=\linewidth]{#2}
+\caption{#3}
+\label{#4}
+\end{subfigure}
+}
+
+\title{\textbf{3. Poročilo: Lastne energije Schr{\"o}dingerjeve enačbe} \\ 
 
 \vspace{2mm} \large Modelska analiza II, 2023/24}
 \author{Aljaž Ravnikar, dipl.~inž.~str.~(UN), 23232128}
@@ -38,9 +55,9 @@
 \begin{document}
 \maketitle
 
-\input{11.nal}
+\input{3.nal}
 
-\bibliographystyle{IEEEtran_slo.bst}
-\bibliography{reference.bib}
+% \bibliographystyle{IEEEtran_slo.bst}
+% \bibliography{reference.bib}
 
 \end{document}

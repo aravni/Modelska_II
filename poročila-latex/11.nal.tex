@@ -117,17 +117,8 @@ Glede na ZP iz prejšnjega poglavja, to poleg večje amplitude poveča tudi ener
 Preizkusil sem še bolj eksotičen ZP v obliki potujočega vala na vrvi, ki pa seveda ne potuje naprej po vrvi. Val je deloval kot dušilec nihanja v y-smeri, saj vzpodbudi nastanek prečnih valov na vrvi, ki bi bili bolje vidni ob še gostejši diskretizaciji. Prečnih nihanj pri ZP ravne vrvi do 45$^\circ$ ni zaznati! Tudi če sem obrnil smer parabole, torej da je zakrivljena navzdol, je moč opaziti podobne lastnosti (\texttt{pendulum\_N20\_phi90\_parabola\_obratno.mp4}).
 \begin{figure}[H]
     \centering
-    \begin{subfigure}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{11.nal_slike/pendulum_N10_val.pdf}
-        \caption{\texttt{pendulum\_N20\_val.pdf}}
-    \end{subfigure}
-    \begin{subfigure}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{11.nal_slike/pendulum_N10_val.pdf}
-        \caption{\texttt{pendulum\_N20\_parabola\_obratno.pdf}}
-    \end{subfigure}
-    \caption{Končno stanje simulacije iz animacij v prilogi, vrv je prikazana v ZP.}
+    \includegraphics[width=0.49\linewidth]{11.nal_slike/pendulum_N10_val.pdf}
+    \caption{Končno stanje simulacije iz animacije \texttt{pendulum\_N20\_val.pdf} v prilogi, vrv je prikazana v ZP.}
 \end{figure}
 
 \section{Analiza dinamike vrvi}
@@ -426,3 +417,13 @@ Zanimivo je, da, kot sem že ugotovil v prejšnjem poglavju, je potek nihanja za
     \end{subfigure}
     \caption{FFT pri diskretizaciji $N=10$ in ZP ravna vrv $\varphi_0=-180^\circ$}
 \end{figure}
+
+\section*{Zaključek}
+
+Čeprav sem ubral drugačno formulacijo, kot je v navodilih, s katero sem se izognil reševanja sistema enačb, so rezultati fizikalno smiselni in primerljivi. Razlika je predvsem v tem, da v Newtonovem pristopu rešimo obe enačbi z metodo končnih razlik, pri čemer eno eksplicitno, drugo pa implicitno in imamo tako le tri-diagonalen sistem enačb, dočim je v Lagrangeevi formulaciji sistem enačb en, a poln, kar lahko poveča računski čas za velike $N$.
+
+Vseeno pa to predstavlja odločilno prednost, saj lahko za tak način uporabimo splošno znane integratorje, kot je Runge-Kutta, ki so boljši od eksplicitne časovne sheme po MKR. To se izkaže tudi pri simulaciji, ko pride do pokanja biča, kjer bi shema MKR ob premajhnem časovnem koraku odpovedala.
+
+Se pa pojavi nova težava, saj integratorji ne ohranjajo skupne energije sistema. Za $N=1$ je bila energija konstantna, za večje $N$ pa je opaziti ekstreme ob prehodu ravnovesne lege. Ne izključujem pa možnosti, da sem narobe meril energijo, saj se izrazi v polarnih koordinatah z vsotami precej zakomplicirajo.
+
+Vsekakor je še nekaj prostora za izboljšave, kot je recimo upoštevanje nekonstantno razporejene mase po vrvi. Saj sedaj ni bilo mogoče simulirati aproksimacije matematičnega nihala z več diskretnimi točkami.

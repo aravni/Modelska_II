@@ -1,0 +1,222 @@
+\graphicspath{{3.nal_slike/}}
+
+\section{Schr{\"o}dingerjeva enačba}
+
+Za vodikov atom se Shr{\"o}dingerjeva enačba za radialni del v brezdimenzijski obliki glasi
+\begin{equation}
+    \left( -\frac{d^2}{dx^2} - \frac{2}{x} + \frac{l\,(l+1)}{x^2} - E\right)\; R(x) = 0, 
+\end{equation}
+pri čemer se robni pogoji glasijo: $R(x=0)=R(x=\infty)=0$, strelski parameter pa je $E$ in hkrati predstavlja lastno energijo. Za uporabo klasičnih integratorjev, kot je Runge-Kutta, je potrebno zgornjo DE 2. reda prevesti v sistem dveh DE 1. reda
+\begin{align}
+    \frac{dR}{dx} &= z\\\nonumber
+    \frac{dz}{dx} &= \left(-\frac{2}{x} + \frac{l\,(l+1)}{x^2} - E\right)\; R(x),
+\end{align}
+ki ju nato integriramo v radialni smeri z začetnima pogojema: robnim pogojem kot začetno vrednostjo in začetnim naklonom, ki pa ne vpliva na obliko rešitve, nego le na skaliranje, zato vsako rešitev normiram, da velja
+\begin{equation}
+    \int_{0}^{\infty} R^2(x)\,dx = 1.
+\end{equation}
+Še boljša pa je metoda Numerova, kjer enačbo oblike
+\begin{equation}
+    \left( \frac{d^2}{dx^2} + k^2(x) \right)\; y(x) = 0,
+\end{equation}
+s funkcijo $k$ za ta problem
+\begin{equation}
+    k(x) = \frac{2}{x} - \frac{l\,(l+1)}{x^2} + E,
+\end{equation}
+zapišemo v diskretni obliki s $h$ kot časovnim korakom
+\begin{equation}
+    y_{i+1} = \frac{2\,\left(1-\frac{5\,h^2}{12}\,k_i^2\right) \,y_i - \left(1-\frac{h^2}{12}\,k_{i-1}^2 \right)\,y_{i-1}}{1-\frac{h^2}{12}\,k_{i+1}^2},
+\end{equation}
+kjer sem uporabil začetne pogoje, enake kot prej, vendar Numerov potrebuje dve začetni vrednosti, zato sem drugo pridobil z linearno aproksimacijo iz začetnih pogojev
+\begin{equation}
+    y_1 = y_0 + h\,z_0,
+\end{equation}
+kjer je $z_0$ začetni naklon, kateri zaradi normiranja rešitve nima fizikalnega pomena.
+
+Pri integraciji naprej sem začel pri $x=0$ z začetnimi pogoji in integriral do $x_{max}$, pri metodi nazaj pa ravno obratno. Obojestransko sem integriral do $x_{max}/2$, nakar sem rešitev skaliral tako, da je bil naklon z obeh strani enak. Potrebno je bilo še prilagoditi strelski parameter $E$ tako, da bo izpolnjen robni pogoj na drugi strani oziroma, da se integracija iz obeh strani sreča v eni točki. Za iskanje ničle te napake lege sem uporabil sekantno metodo z začetnima približkoma, blizu analitični vrednosti za $E$, $x_0= 1/n^2$ in $x_1=1.001\,x_0$.
+
+Zaradi narave lastnih funkcij $R(x)$ je bilo potrebno prilagajati tudi $x_{max}$, za kar sem uporabil preprosto aproksimacijo, ki deluje za $n<50$
+\begin{equation}
+    x_{max} \approx 10\,n^{1.65}.
+\end{equation}
+
+Spodaj so prikazane nekatere lastne funkcije $R(x)$, dobljene z metodo Numerov.
+
+\fig{H}{1}{lastne_funk_n}{Lastne funkcije za $l=0$}{}
+\fig{H}{1}{lastne_funk_l}{Lastne funkcije z $l>0$}{}
+
+Za zgornje primere sem preveril vrednosti strelskega parametra $E$, ki se precej dobro sklada z analitično zvezo $E=1/n^2$
+
+\fig{H}{0.75}{energije_n}{Izračunane lastne energije}{}
+
+Sledi prikaz absolutne vrednosti napake lege, kjer sem iskal ničlo. Opazim, da se za manjše $x$ vrednost $E$ lepo sklada z analitično rešitvijo, pri višjih pa je verjetno težava z $x_{max}$. Zgleda, da se najbolje se izkaže še obojestranska integracija, sledi metoda nazaj in najslabša naprej.
+
+\fig{H}{0.75}{grid_search}{\textit{Grid search} za strelski parameter energije $E$. Navpično so označene analitične vrednosti.}{}
+
+\begin{table}[H]
+    \begin{tabular}{c|c c c c c}
+        metoda & RK naprej & RK nazaj & RK obojestransko & Numerov naprej & Numerov nazaj \\\hline
+        čas [s] & 0,9 & 3,1 & 1,0 & 0,2 & 0,4
+    \end{tabular}
+    \caption{Časi izračunov za \textit{Grid search} -- 1000 izračunov za $E \in (10^{0.05}, 10^{-2.5})$}
+\end{table}
+
+Iz sledečih slik lahko razberemo, v kolikšni meri se numerična rešitev $R_{nl}$ sklada z analitično $\mathcal{R}_{nl}$ za različne metode. V neskončnosti zaradi numeričnih težav predpišem vrednost blizu nič ($10^{-4}$), prav tako tudi ne integriram točno do $x=0$, ampak do $x=10^{-9}$. Ker se v primeru sodega števila ničel v $x=\infty$ ničli približa od spodaj, moram to upoštevati tam pri robnem pogoju.
+
+Opazim, da se z zmanjšanejem $\Delta x$, napak manjša, razen za integrator RK45 iz \\\texttt{scipy.integrate.solve\_ivp}, kjer je verjetno težava, in hkrati očitna pohitritev v adaptivnem koraku. Metoda Numerov pričakovano dosega najnižje napake, obojestranska pa ima 
+
+Nekako je metoda nazaj 2x počasnejša, vendar je bolj stabilna, saj se strelja proti vrednosti $R(x=0)=0$, dočim pri metodi naprej ta cilj ni nikoli dosežen, saj se zaradi numerične napake v neskončnosti oddaljujemo od željenega robnega pogoja.
+
+To se sicer lahko kompenzira z dovolj majhnim $x_{max}$, vendar je že zagotavljanje dovolj velikega, da zajame vse ničle, povzročalo težavo, ali ustavitvijo integracije pri določeni bližini x-osi, kar je lahko težavno zaradi večjega števila ničel.
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napaka_dx_n1_l0_naprej-RK}{lastna koda RK4 naprej}{}
+    \subfig{0.48}{napaka_dx_n1_l0_naprej}{RK45 naprej}{}
+    \subfig{0.48}{napaka_dx_n1_l0_nazaj}{RK45 nazaj}{}
+    \subfig{0.48}{napaka_dx_n1_l0_obojestransko}{RK45 obojestransko}{}
+    \subfig{0.48}{napaka_dx_n1_l0_numerov}{Numerov naprej}{}
+    \subfig{0.48}{napaka_dx_n1_l0_numerov nazaj}{Numerov nazaj}{}
+    \caption{Vpliv $\Delta x$ na napako rešitve $R_{10}(x)$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napaka_dx_n2_l1_numerov nazaj}{Numerov nazaj}{}
+    \subfig{0.48}{napaka_dx_n2_l1_obojestransko}{obojestransko}{}
+    \caption{Vpliv $\Delta x$ na napako rešitve $R_{21}(x)$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napaka_dx_n3_l0_numerov nazaj}{Numerov nazaj}{}
+    \subfig{0.48}{napaka_dx_n3_l0_obojestransko}{obojestransko}{}
+    \caption{Vpliv $\Delta x$ na napako rešitve $R_{30}(x)$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napaka_dx_n3_l1_numerov nazaj}{Numerov nazaj}{}
+    \subfig{0.48}{napaka_dx_n3_l1_obojestransko}{obojestransko}{}
+    \caption{Vpliv $\Delta x$ na napako rešitve $R_{31}(x)$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napaka_dx_n3_l2_numerov nazaj}{Numerov nazaj}{}
+    \subfig{0.48}{napaka_dx_n3_l2_obojestransko}{obojestransko}{}
+    \caption{Vpliv $\Delta x$ na napako rešitve $R_{32}(x)$}
+\end{figure}
+
+Peizkusil sem še, kako pravilne so rešitve. To sem izvedel tako, da sem preštel ničle fukncije in ničle odvodov, kjer mora obojih posebej biti natanko $n-l$. Očitno se z zmanjšanjem koraka $\Delta x$ stanje izboljša, preseneča pa me metoda Numerov nazaj, kjer je to izboljšanje zelo majhno! Morebiti je temu kriva linearna aproksimacija začetne točke, vendar tudi višji red ni bistveno izboljšal zadeve.
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napake_dx0.1_naprej-RK}{lastna koda RK4 naprej}{}
+    \subfig{0.48}{napake_dx0.1_naprej}{RK45 naprej}{}
+    \subfig{0.48}{napake_dx0.1_nazaj}{RK45 nazaj}{}
+    \subfig{0.48}{napake_dx0.1_obojestransko}{RK45 obojestransko}{}
+    \subfig{0.48}{napake_dx0.1_numerov}{Numerov naprej}{}
+    \subfig{0.48}{napake_dx0.1_numerov nazaj}{Numerov nazaj}{}
+    \caption{Pravilnost števila ničel in ničel odvodov pri $\Delta x = 0.1$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{napake_dx0.01_naprej-RK}{lastna koda RK4 naprej}{}
+    \subfig{0.48}{napake_dx0.01_naprej}{RK45 naprej}{}
+    \subfig{0.48}{napake_dx0.01_nazaj}{RK45 nazaj}{}
+    \subfig{0.48}{napake_dx0.01_obojestransko}{RK45 obojestransko}{}
+    \subfig{0.48}{napake_dx0.01_numerov}{Numerov naprej}{}
+    \subfig{0.48}{napake_dx0.01_numerov nazaj}{Numerov nazaj}{}
+    \caption{Pravilnost števila ničel in ničel odvodov pri $\Delta x = 0.01$}
+\end{figure}
+
+Glede porabe časa sem opazil, da je metoda Numerov bistveno hitrejša. Opazna pa je razlika med lastno in scipy Runge-Kutto, sploh pri manjših $\Delta x$.
+
+\fig{H}{0.75}{cas}{Povprečna časovna zahtevnost metod}{}
+
+\section{Helmholtzova enačba}
+
+Rešujem Helmholtzovo enačbo za propagacijo monokromatske svetlobe v radialni smeri snovi, kot je optično vlakno,
+\begin{equation}
+    \left( \frac{d^2}{dx^2} + \frac{1}{4\,x^2} + n^2(x)\,k^2 - \lambda^2 \right) \, R(x) = 0,
+\end{equation}
+kjer je $k$ valovno število in hkrati prosti parameter simulacije, $n(x)$ lomni količnik, $\lambda$ lastna vrednost in $R(x)$ lastna funkcija.
+
+V navodilih je podan potek lomnega količnika v radialni smeri optičnega vlakna
+\begin{equation}
+    n(x) =
+    \begin{cases}
+        N_j-\frac{x^2}{2} & x < 1\\
+        1 & x \geq 1
+    \end{cases},
+\end{equation}
+kjer je $N_j=2$ lomni količnik jedra. Sam pa definiram še večplastno (dvoplastno jedro) vlakno
+\begin{equation}
+    n(x) =
+    \begin{cases}
+        N_j-\frac{1}{2}\,x^2 & x < 1\\
+        1.25-0.2\,x+0.2 & 1 \leq x < 2\\
+        1 & x \geq 2
+    \end{cases}
+\end{equation}
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{lomni}{lomni količni iz navodil}{}
+    \subfig{0.48}{lomni2}{nov lomi količnik}{}
+\end{figure}
+
+Enačbo rešujem na enak način kot vprejšnjem poglavju z metodama Numerov in Runge-Kutta, tudi robni pogoji so (za fizikalno smiselne rešitve) isti. $x_{max}$ pa je drugačen
+\begin{equation}
+    x_{max}=\frac{20}{k},
+\end{equation}
+saj ga je za večje $k$ potrebno zmanjševati.
+
+Izvedem iskanje ničle na enak način kot poprej, vendar kmalu ugotovim, da je v tem primeru to zahtevnejše delo, saj so ničle že iz spodnjih grafov komaj opazne. Prav tako me preseneča, da z različnimi metodami dobim različne lege ničel, torej različne vrednosti parametrov $\lambda$! To je bolje opazno v spodnji tabeli.
+
+Ničle napake robnega pogoja sem iskal v dveh korakih. V prvem sem interval, kjer sem opazil, da se nahajajo vse ničle, $\lambda \in (k,2\,k)$, razdelil na 10 podintervalov, na katerih sem opazoval spremembo predznaka. Če je sprememba bila, sem v drugem koraku ničlo na podintervalu natančneje določil z metodo \textit{brent} iz \texttt{scipy.optimize.root\_scalar}. Tako lahko določim max 10 ničel, saj ako sta dve na enem podintervalu algoritem ne zazna nobene!
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{grid_search_k1}{$k=1$}{}
+    \subfig{0.48}{grid_search_k2}{$k=2$}{}
+    \subfig{0.48}{grid_search_k5}{$k=5$}{}
+    \subfig{0.48}{grid_search_k10}{$k=10$}{}
+    \caption{Iskanje ničle na intervalu $\lambda \in (k, 2\cdot k)$}
+\end{figure}
+
+\begin{table}[H]
+    \begin{tabular}{c|c c c c c c}
+        metoda & \shortstack{RK4 lastna\\naprej} & \shortstack{RK4 lastna\\nazaj} & \shortstack{RK45 scipy\\naprej} & \shortstack{RK45 scipy\\nazaj} & \shortstack{Numerov\\naprej} & \shortstack{Numerov\\nazaj} \\ \hline
+        $\lambda$ & 1,068 & 1,144 & 1,160 & 1,224 & 1,121 & 1,121\\
+    \end{tabular}
+    \caption{Rezultati različnih metod pri $k=1$}
+\end{table}
+
+Sledi prikaz lastnih oblik za nekaj primerov in disperzijska relacija dva različna lomna količnika jedra.
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{modes_k1}{$k=1$}{}
+    \subfig{0.48}{modes_k2}{$k=2$}{}
+    \subfig{0.48}{modes_k3}{$k=3$}{}
+    \subfig{0.48}{modes_k5}{$k=5$}{}
+    \subfig{0.48}{modes_k7}{$k=7$}{}
+    \subfig{0.48}{modes_k10}{$k=10$}{}
+    \caption{Lastne funkcije in pripadajoče vrednosti $\lambda$}
+\end{figure}
+
+Opazim, da $N_j$ spreminja naklon disperzijske relacije in zniža vrednost valovnega števila $k$, do katerega je vlakno še ``single mode fiber''. Pri $N_j$ je to do $k=2.865$. Prav tako se zniža na $k=2.302$ pri večplastnem vlaknu.
+
+\fig{H}{0.8}{disperzijska}{Disperzijska relacija pri $N_j=2$}{}
+\fig{H}{0.8}{disperzijska_2}{Disperzijska relacija pri $N_j=3$}{}
+\fig{H}{0.8}{disperzijska_lomni2}{Disperzijska relacija za lomni količnik po večplastnem vlaknu}{}
+
+Na spodnjem grafu je bolje viden vpliv lomnega količnika jedra $N_j$ na mejni $k$ za ``single mode fibre''. Hkrati sem računal lego presečišča premic, vendar, ker je sistem predoločen, verjetno to v nekaterih primerih povzroča težavo, zato iz tega nekakšne korelacije ni mogoče razbrati. Za rešitev sistema sem uporabil rešitev po metodi najmanjših kvadratov po \texttt{numpy.linalg.lstsq}. Prav tako postane težava, ko sem želel na eno točko ``fitati'' premico!
+
+\fig{H}{0.8}{k_single_mode}{Sprememba meje za ``single mode fibre'' v odvisnosti od lomnega količnika jedra}{}
+\fig{H}{0.8}{presecisce}{Presečišče premic disperzijske relacije}{}
+
+\fig{H}{0.8}{cas_helmholtz}{Časovna zahtevnost}{}
+Časovna zahtevnost me v primerjavi s prejšnjo preseneča, saj je očitno večja. Domnevam, je pri $k=1$ vrh zaradi prvega klica vseh funkcij, saj nato opazim trend naraščanja. 

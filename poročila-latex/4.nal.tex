@@ -1,0 +1,157 @@
+\graphicspath{{4.nal_slike/}}
+
+\section{He atom}
+
+Iščem ionizacijsko energijo He atoma z uporabo Hartree-Fock-ovega približka, saj ima atom He poleg jedra še dva elektrona, kar predstablja problem treh teles, kjer ni mogoče rešavati osnosimetrične Schr{\"o}dingerjeve enačbe direktno, ampak uporabim sledeči potek:
+\begin{enumerate}
+    \item Izberem začetni približek funkcije za radialni del Schr{\"o}dingerjeve enačbe $R_0(x)$ in Lagrangeev multiplikator $\varepsilon_0$, ki predstavlja energijo enega elektrona v polju preostalih in jedra.
+    \item Izračunam rešitev Poissonove enačbe za potencial enega elektrona
+    \begin{equation}
+        \nabla^2\,\Phi(x) = \frac{R^2(x)}{x^2}
+    \end{equation}
+    z enojno integracijo
+    \begin{equation}
+        \phi(x) = -\frac{1}{x} \int_{0}^{x}\,R^2(y)\,dy - \int_{x}^{\infty}\frac{R^2(y)}{y}\,dy.
+     \end{equation}
+     \item Rešim osnosimetrično Schr{\"o}dingerjevo enačbo
+     \begin{equation}
+        \left( \frac{d^2}{dx^2} + \frac{2\,Z}{x} + 2\,\Phi(x) + \varepsilon \right) \, R(x) = 0
+     \end{equation}
+     z izračunanim $\Phi(x)$ in prilagodim strelski parameter $\varepsilon$, da rešitev ustreza robnim pogojem
+     \begin{equation}
+        R(x=0)=0,\quad R(x=\infty)=0, \quad R'(x=\infty)=0
+     \end{equation}
+     na eank način kot v prejšnji (3.) nalogi. Uporabim sekantno metodo iskanja ničle lege na drugi strani od smeri integracije. Uporabil sem metode Numerova in Runge-Kutta 4. reda za integracijo v radialni smeri v obeh smereh (naprej streljam iz $x=0$ in nazaj iz $x=x_{max}$).
+     \item Dobljen $R(x)$ normaliziram in ga skupaj z $\varepsilon$, dobljen iz prejšnjega koraka vrnem v 2. korak dokler ne dosežem željene tolerance energije
+     \begin{equation}
+        |E_i-E_{i-1}| < 10^{-10},
+     \end{equation}
+     kjer skupno energijo elektronov računam
+     \begin{align}
+        E = & \, 2\,E_0\,\int_{x_{min}}^{x_{max}} \left[ R'^2(x) - \frac{2\,Z}{x}\,R^2(x) - \Phi(x)\,R^2(x) \right] dx - \nonumber \\
+        & - \varepsilon\,E_0\, \left[ \int_{x_{min}}^{x_{max}}\,R^2(x)\,dx -1 \right]
+    \end{align}
+     kjer je $E_0=13.6058$~eV, zadnji člen pa poskbi za normalizacijo $R(x)$.
+\end{enumerate}
+
+Za začetni približek vzamem
+\begin{equation}
+    R_0(x)=2\,\sqrt{Z^*}\,x\,Z^*\,\exp{-Z^*\,x},\quad \varepsilon_0=-5~\text{eV},
+\end{equation}
+kjer $Z^*=Z-\frac{5}{16}$ in $Z=2$ za He atom. V tem primeru iščem ionizacijsko energijo iz prve lupine $n=1$.
+
+Na spodnji sliki je predstavljena konvergenca $R(x)$, kjer opazim, da zelo hitro konvergira (že v 5 iteracijeh!) ob uporabi integracije nazaj z metodo Numerov, saj je opazna sprememba že v prvi iteaciji, v preostalih pa očitne izboljšave več ni. Uporabil sem korak integracije $\Delta x=0.01$, kar velja tudi za vse sledeče izračune.
+
+\fig{H}{0.7}{konvergenca_R}{Konvergenca $R(x)$ tekom iteracij}{}
+
+Takisto je z konvergenco strelsekega parametra $\varepsilon$ in skupne energije $E$. Zanimivo, da na to bistveno ne vplivata začetna približka, le $\varepsilon_0$ mora biti primeren, da zadanemo lupino $n=1$. Tekom poročila bom uporabljal $R_0(x)$ iz predloge.
+\fig{H}{0.7}{konvergenca_E_epsilon_ZP}{Konvergenca $E$ in $\varepsilon$ tekom iteracij}{}
+
+Preverim tudi, kako na rešitev vpliva metoda integracije. Opazim, da presenetljivo odpove Runge-Kutta ob enakem $\Delta x$ in začetnim pogojem, Numerov pa se izkaže bolje, vseeno pa me preseneča očitna razlika v $R(x)$, prav tako pa je pri integraciji naprej lahko težava zaradi prevelikega $x_{max}$, zato raje uporabljam metodo Numerov nazaj, ki je tudi najhitreje konvergirajoča in časovno najmanj zahtevna. Zanimivo je tudi, da glede na smer integracije konvergira k različnim $\varepsilon$ in vseeno podobnim $E$.
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{konv_E_epsilon_integratorji}{Konvergenca}{}
+    \subfig{0.48}{integratorji_iter}{Št. iteracij, ničle in računski čas}{}
+    \subfig{0.64}{integratorji_R}{Lastne funkcije $R(x)$}{}
+    \caption{Rezultati pri različnih metodah integracije}
+\end{figure}
+
+Opazim tudi, da se malenkost spremeni konvergenca glede na $\Delta x$, vendar je število iteracij enako. To vpliva prevsem na računski čas, končno vrednost $E$ in $\varepsilon$.
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{konv_dx_E}{končna $E$ in $\varepsilon$}{}
+    \subfig{0.48}{konv_dx_E_rel}{konvergenca skupne energije $E$}{}
+    \caption{Odvisnost od diskretizacije $\Delta x$}
+\end{figure}
+
+\subsection{Višje lupine}
+\subsubsection{Helij}
+
+Ionizacijske energije za elektrone v višlih lupinah lahko zadanem z začetnim približkom $\varepsilon_0$, ki nato konvergira k ničli z strelsko metodo. Za višje lupine mora biti ta začetni približek manjši.
+
+Na spodnji sliki so prikazani ti energijski nivoji, glede na začetni približek $\varepsilon_0$. Prav tako so z modrimi navpičnimi črtami označene lege, k katerim $\varepsilon$ konvergira.
+
+\fig{H}{0.82}{vecji_n_energije_Z2_Numerov nazaj}{Energijski nivoji za večje $n$ pri $Z=2$}{}
+\fig{H}{0.82}{vecji_n_R_Numerov nazaj_Z2}{Lastne funkcije $R(x)$ pri integraciji nazaj}{fig:R_Z2}
+
+Opazim, da bližje $\varepsilon=0$ dosegam višje lupine, vseeno pa nisem uspel ``zadeti'' lupin $n=2$ in $n=4$, za kar domnevam, da je kriv začetni pogoj pri streljalju iz $x_{max}$. Ker sem zaradi numerične stabilnosti streljal iz lege $y_0=10^{-4}$ z naklonom $y_0'=0.1$ sem očitno lahko zadel le lastne funkcije z lihim št. ničel. Za sode bi verjetno moral vzeti $y_0=-10^{-4}$ in boljši začetni približek $R_0$.
+
+\vspace{5mm}
+OPOMBA: Na slikah, kjer so prikazane funkcije $R(x)$ je oštevilčenje lupin napačno. Pozabil sem namreč odšteti 1. Napaka je prisotna na slikah \ref{fig:R_Z2}, \ref{fig:R_Z2_naprej}, \ref{fig:R_Z3} in \ref{fig:R_Z4}.
+
+\fig{H}{0.78}{vecji_n_R_Numerov naprej_Z2}{Lastne funkcije $R(x)$ pri integraciji naprej}{fig:R_Z2_naprej}
+
+Pri tem sem tudi opazil, kakšne težave ima metoda integracije naprej zaradi $x_{max}$, kar je vodno na zgornji sliki, dočim se temu izognem z uporabo integracije nazaj. Pričakovano potrebujem več iteracij in časa za izračun višjih lupin.
+
+\fig{H}{0.78}{vecji_n_iters_Z2}{Št. iteracij in ničel ter čas pri $Z=2$}{}
+
+Na spodnji sliki primerjam izračunane energijske nivoje z onimi, dobljenimi z Bohrovim modelom atoma po enačbi
+\begin{equation}
+    E_n = E_0\,\frac{Z^2}{n^2},
+\end{equation}
+kjer je $E_0=13.6058$~eV in $Z$ vrstno število atoma. Teoriji se bolje skladata za višje $n$.
+
+\fig{H}{0.8}{primerjava_Bohr_Z2}{Primerjava teorij določanje energijskih nivojev atomov pri $Z=2$}{}
+
+Enak postopek ponovim za Litij $Z=3$ in Berilij $Z=4$, kjer se izkaže, da je določanje ionizacijskih energij višjih lupin že bolj zahtevno, saj nekatere rešitve niso smiselne, saj se pojavljajo oscilatorne rešitve, saj je $x_{max}$ premajhen.
+
+\subsection{Litij}
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{vecji_n_energije_Z3_Numerov nazaj}{Energijski nivoji za večje $n$ pri $Z=3$}{}
+    \minifig{0.48}{primerjava_Bohr_Z3}{Primerjava teorij določanje energijskih nivojev atomov pri $Z=3$}{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{vecji_n_R_Numerov nazaj_Z3}{Lastne funkcije $R(x)$ pri $Z=3$}{fig:R_Z3}
+    \minifig{0.48}{vecji_n_iters_Z3}{Št. iteracij in ničel ter čas pri $Z=3$}{}
+\end{figure}
+
+\subsection{Berilij}
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{vecji_n_energije_Z4_Numerov nazaj}{Energijski nivoji za večje $n$ pri $Z=4$}{}
+    \minifig{0.48}{primerjava_Bohr_Z4}{Primerjava teorij določanje energijskih nivojev atomov pri $Z=4$}{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{vecji_n_R_Numerov nazaj_Z4}{Lastne funkcije $R(x)$ pri $Z=4$}{fig:R_Z4}
+    \minifig{0.48}{vecji_n_iters_Z4}{Št. iteracij in ničel ter čas pri $Z=4$}{}
+\end{figure}
+
+\newpage
+\section{Večji atomi}
+
+Enak postopek kot sem izvedel v prejšnjem poglavju razširim na neceloštevilsko vrstno št. $Z$ in za 1. lupino $n=1$. Pri tem sem moral paziti na dovolj velik začetni približek $\varepsilon_0$, zato sem ga ocenil kot $\varepsilon_0=-Z^2$ in $R_0$ kot iz predloge.
+
+Opazim, da se rezultat precej dobro sklada z eksperimentom, edino pri $Z=1$ bolj slabo. Sicer sem izvedel, da tam metoda sploh ne bi smela konvergirati, vendar kot je razvidno iz slike \ref{fig:iters}, je potrebno le malo več računskega časa in eno iteracijo več. Ker pa je na spodnji sliki energija prikazana v absolutni vrednosti zaradi bolj nazornega prikaza v logaritemski skali, je izračunana energija prenizka.
+
+Iz tabele je razvidno, da integracija nazaj podcenjuje energije, dočim je rezultat z Numerov naprej bližje eksperimentu, vendar bolj nestabilen, kar je razvidno iz slike \ref{fig:naprej} in \ref{fig:R_naprej}.
+
+Na sliki \ref{fig:R_nazaj} je vidno, da je z metodo Numerov nazaj moč dobiti bolj smiselne rezultate kot z integracijo naprej, kjer so celo nekatere popolnoma nepravilne! Tudi pri $Z=1$ sicer deluje lastna funkcija smiselno in tako, kot iz prejšnjega (3.) poročila.
+
+\fig{H}{0.9}{Z_energija}{Energija pri $n=1$ v odvisnosti od $Z$ za integracijo nazaj}{}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|c c c}
+        metoda & H & He & Li \\\hline
+        Numerov nazaj & -9.822 & -75.223 & -195.134 \\
+        Numerov naprej & -1.486 & -78.194 & -197.892 \\
+        eksperiment & -14.34 & -78.88 & -198.04
+    \end{tabular}
+    \caption{Primerjava energij za celoštevilske $Z$ v [eV]}
+\end{table}
+
+\fig{H}{0.8}{Z_iteracije}{Število iteracij in računski čas v odvisnosti od $Z$}{fig:iters}
+
+\fig{H}{0.8}{Z_energija_naprej}{Energija pri $n=1$ v odvisnosti od $Z$ za integracijo naprej}{fig:naprej}
+
+\fig{H}{0.8}{R_funk_Z}{Lastne funkcije $R(x)$ za različne $N$ in integracijo nazaj}{fig:R_nazaj}
+\fig{H}{0.8}{R_funk_Z_naprej}{Lastne funkcije $R(x)$ za različne $N$ in za integracijo naprej}{fig:R_naprej}
+
+% metoda, H, He, Li energije
+% Numerov nazaj -9.822026636102146 -75.22302201598569 -195.13445752309056
+% Numerov naprej -1.4860930095624287 -78.19384828800324 -197.89242022134175

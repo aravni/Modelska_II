@@ -15,6 +15,7 @@ from numba import njit, jit
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
 plt.style.use('aljaz')
+
 @njit
 def DE(x,y, e,l=0):
     '''integracija en. za vodikov atom'''

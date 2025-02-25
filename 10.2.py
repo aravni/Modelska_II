@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-# spektralno reševanje poissonove enačbe za cilindrični KS v 2D
+# 10.naloga: spektralno (direktno) reševanje poissonove enačbe za cilindrični KS v 2D
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rc
 import scipy.fft as fft
 from timeit import default_timer as timer
 
-rc({"text.usetex": True,
-    'family': 'serif', 'serif': ['Computer Modern']})
-plt.rcParams.update({'font.size': 10})
+plt.style.use('aljaz')
+plt.rcParams.update({'font.size': 14})
 def pause():
     input("Press the <ENTER> key to continue...")
 
@@ -34,80 +32,75 @@ def TDMAsolver(a, b, c, d):
 
     return xc
 
-R=1#enakostraničen valj 2r=h
+R=1#enakostraničen valj 2R=H
 H=2*R
-N=10
+N=50
 
 #fiz prostor
-z = np.linspace(0,H,N) #dz=dr
-r = np.linspace(-R,R,N)
+z = np.linspace(0,H,N)
+r = np.linspace(-R,R,N) #dz=dr
+# r = np.linspace(-R,R,2*N) #dz=2*dr
 r_j,z_k = np.meshgrid(r,z)
-j = np.arange(1,1+N,1,dtype=int)
+# j = np.arange(1,1+N,1,dtype=int)
 
 #transformiran prostor
-m=n=np.arange(1,1+N,1,dtype=int)
+n=np.arange(1,1+N,1,dtype=int)
+m=np.arange(1,1+N,1,dtype=int) #dz=dr
+# m=np.arange(1,1+2*N,1,dtype=int)
 m,n=np.meshgrid(m,n)
+
+#RP
+T1 = 10 #plašč, navodila T1>T2
+T2 = -10 #zg,sp
 
 t = timer()
 # pas_sr = 2*np.cos(np.pi*n/N)-10 #če dz=2*dr
-# pas_sp = 4 - 2/j[1:]
-# pas_zg = 4 + 2/j[:-1]
+# pas_sp = 4 - 2/n
+# pas_zg = 4 + 2/n
 
-pas_sr = 2*np.cos(np.pi*n/N)-10 #če dz=dr
-pas_sp = 4 - 2/n
-pas_zg = 4 + 2/n
+pas_sr = 2*np.cos(np.pi*n/N)-4 #če dz=dr
+pas_sp = 1 - 1/2/n #n=j
+pas_zg = 1 + 1/2/n
 desna = np.zeros_like(pas_sr)
 
-#RP
-T1 = 0 #zg,sp
-T2 = 1 #plašč, navodila T2>T1
+# RP r=-R
+pas_sp[0] = 0
+pas_sr[0] = 1
+pas_zg[0] = 0
+desna[0] = T1
 
-i=0 #sp
-pas_sr[i,:] = 1
-pas_sp[i,:] = 0
-pas_zg[i,:] = 0
-desna[i,:] = T1
+# RP r=R
+pas_sp[-1] = 0
+pas_sr[-1] = 1
+pas_zg[-1] = 0
+desna[-1] = T1
 
-i=-1 #zg
-pas_sr[i,:] = 1
-pas_sp[i,:] = 0
-pas_zg[i,:] = 0
-desna[i,:] = T1
+desna = fft.dst(desna,axis=1) #delna transformacija (z-smer)
+print(pas_sp.shape, pas_sr.shape, pas_zg.shape, desna.shape)
 
-i=0 #
-pas_sr[:,i] = 1
-pas_sp[:,i] = 0
-pas_zg[:,i] = 0
-desna[:,i] = T2
-
-i=-1 #
-pas_sr[:,i] = 1
-pas_sp[:,i] = 0
-pas_zg[:,i] = 0
-desna[:,i] = T2
-
-desna = fft.dst(desna,axis=0) #delna transformacija
-
-T_j_n = TDMAsolver(pas_sp.flatten()[:], pas_sr, pas_zg.flatten()[:], desna).reshape((N,N))
-T_jk = fft.idst(T_j_n,axis=0) #delna transformacija
+T_j_n = TDMAsolver(pas_sp.ravel()[:], pas_sr, pas_zg.ravel()[:], desna).reshape((N,N))
+T_jk = fft.idst(T_j_n, axis=1) #delna transformacija (z-smer)
+T_jk += T2 #Dirichlet RP v z smeri ????
+print(T_jk.shape,T_j_n.shape)
 t_komb = timer()-t
-print('kombinirana: t = ',t_komb)
+print(f'2.naloga: t = {t_komb:.3f} s')
 
 # plot
 pointsize=3
 max_T = np.max(T_jk)
 
 sc=plt.contourf(r_j,z_k,T_jk,cmap='coolwarm')
-#sc=plt.scatter(x,y,c=u,s=pointsize)
-cbar=plt.colorbar(sc,label='T')
-cbar_ticks = list(cbar.get_ticks()[:-1])  # Get existing ticks
-cbar_ticks.append(max_T)  # Add max(u) to the ticks
-cbar.set_ticks(cbar_ticks)
+# # sc=plt.scatter(r_j,z_k,c=T_jk,s=pointsize, cmap='coolwarm')
+cbar=plt.colorbar(sc,label='$T$')
+# cbar_ticks = list(cbar.get_ticks()[:-1])  # Get existing ticks
+# cbar_ticks.append(max_T)  # Add max(u) to the ticks
+# cbar.set_ticks(cbar_ticks)
 
 plt.axis('equal')
+plt.grid(False)
 plt.xlabel('$r$')
 plt.ylabel('$z$')
-plt.title(f'$N={T_jk.size}$')
+plt.title(f'$N={N*N}$')
 plt.tight_layout()
 #plt.savefig('./temp.pdf')
 plt.show()

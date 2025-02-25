@@ -5,12 +5,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import scipy.fft as fft
 from timeit import default_timer as timer
 
-rc({"text.usetex": True,
-    'family': 'serif', 'serif': ['Computer Modern']})
-plt.rcParams.update({'font.size': 10})
+plt.style.use('aljaz')
 def pause():
     input("Press the <ENTER> key to continue...")
 
@@ -90,8 +90,9 @@ def SOR(A,q,omega=1,N=1,tol=1e-6):
     return u, residual, n
 
 a=b=1 #širina=višina
-N=30 #št. računskih točk po osi
-h=a/N
+N=51 #št. računskih točk po osi
+h=a/(N-1)
+ratio=100 #ratio=1 - homogeno
 
 def g_homog(x,y,r):
     '''desna stran PDE homogena opna'''
@@ -100,7 +101,7 @@ def g_kvad(x,y,r, ratio=2):
     '''desna stran PDE kvadratno območje odebelitve'''
     l = 0.5*a #stranica kvadrata
     origin = (a/2,b/2) #izhodišče
-    origin = (3*a/4, 3*b/4)
+    origin = (3*a/4, 3*b/4) #desno zgoraj
     for i in range(r.shape[0]):
         for j in range(r.shape[1]):
             if abs(x[i]-origin[0]) < l/2 and abs(y[j]-origin[1]) < l/2:
@@ -129,19 +130,25 @@ X,Y = np.meshgrid(x,y)
 g_jk = g_homog(x,y,r)
 ime= 'homogena'
 
-# g_jk = g_kvad(x,y,r,ratio=100)
+# g_jk = g_kvad(x,y,r,ratio=ratio)
+# ime= 'nehomogena-kvadrat na sredini'
 # ime= 'nehomogena-kvadrat na robu'
 
-# g_jk = g_f(x,y,r,ratio=100)
+# g_jk = g_f(x,y,r,ratio=ratio)
 # ime= 'f-opna'
 
-# plt.imshow(g_jk,origin='lower')
-# # plt.scatter(X,Y,c=g_jk.flatten())
-# # plt.axis('equal')
+plt.figure(figsize=(4,4))
+plt.imshow(g_jk,origin='lower', cmap='binary_r')
+# plt.scatter(X,Y,c=g_jk.flatten())
+plt.axis('equal')
 # plt.axis('off')
-# #plt.savefig('./'+ime+'.pdf')
+plt.xticks([])
+plt.yticks([])
+plt.xlim(0,N-2)
+plt.ylim(0,N-2)
 # plt.title('oblika opne: '+ime)
-# plt.show()
+plt.savefig(f'./slike/{ime}')
+plt.show()
 
 u_homog = lambda u_max: u_max*16*(X-X**2)*(Y-Y**2) #?analitična? rešitev za homogeno kvadratno domeno
 # k = np.arange(0,N*N,1,dtype=int)
@@ -153,21 +160,36 @@ u_homog = lambda u_max: u_max*16*(X-X**2)*(Y-Y**2) #?analitična? rešitev za ho
 # plt.axis('equal')
 # plt.show()
 
-# %%    1. 2D sinusna FFT
+# %%    1. 2x 1D sinusna FFT
 t = timer()
-G_mn = fft.dstn(g_jk) #transformiran prostor
-# G_mn = np.imag(fft.fft2(g_jk))
+G_mk = fft.dst(g_jk, axis=0, type=1) #pol-transformiran prostor
+G_mn = fft.dst(G_mk, axis=1, type=1) #transformiran prostor
 
 m=n=np.arange(1,1+N,1,dtype=int)
 m,n=np.meshgrid(m,n)
 
 U_mn = h*h/2 * G_mn / (np.cos(np.pi*m/N)+np.cos(np.pi*n/N)-2) #vektorsko
-u_jk = fft.idstn(U_mn) #nazaj v fiz prostor
-# u_jk = np.imag(fft.ifft2(U_mn)) #fft ni ok!?
+U_jn = fft.idst(U_mn, axis=0, type=1) #1D sinusna FT
+u_jk = fft.idst(U_jn, axis=1, type=1) #nazaj v fiz prostor
+t_fft = timer()-t
+u_1d_sin = u_jk
+u_h = u_homog(np.max(u_jk))
+print('1. 1D FFT.',t_fft,',',np.linalg.norm(u_jk-u_h), np.max(u_1d_sin))
+title = '1D sin fft'
+
+# %%    2. 2D sinusna FFT
+t = timer()
+G_mn = fft.dstn(g_jk, type=1) #transformiran prostor
+
+m=n=np.arange(1,1+N,1,dtype=int)
+m,n=np.meshgrid(m,n)
+
+U_mn = h*h/2 * G_mn / (np.cos(np.pi*m/N)+np.cos(np.pi*n/N)-2) #vektorsko
+u_jk = fft.idstn(U_mn, type=1) #nazaj v fiz prostor
 t_fft = timer()-t
 u_2d_sin = u_jk
 u_h = u_homog(np.max(u_jk))
-print('1. FFT.',t_fft,',',np.linalg.norm(u_jk-u_h)) #očitno sistem enačb(A@u-g) ni dobro merilo!!!!!!
+print('2. 2D FFT.',t_fft,',',np.linalg.norm(u_jk-u_h), np.max(u_2d_sin)) #očitno sistem enačb(A@u-g) ni dobro merilo!!!!!!
 title = '2D sin fft'
 
 # U=np.zeros((N,N)) #vsote (v trasformiranem prostoru) -> počasno!!
@@ -177,7 +199,7 @@ title = '2D sin fft'
 # u_naiv= fft.idstn(U) #nazaj v fiz prostor
 # print(np.sum(np.abs(u_naiv-u_jk))) #isto
 
-# %%    2. zvezna FT, naivno seštevanje vsot (v realni domeni), POČASNO
+# %%    3. zvezna FT, naivno seštevanje vsot (v realni domeni), POČASNO
 t = timer()
 m=n=np.arange(1,1+N,1,dtype=int)
 m,n=np.meshgrid(m,n)
@@ -190,43 +212,37 @@ u_jk = u
 t_ft = timer()-t
 u_zvezno = u_jk
 u_h = u_homog(np.max(u_jk))
-print('2. zvezna FT:',t_ft,'s ,',np.linalg.norm(u_jk-u_h))
+print('3. zvezna FT:',t_ft,'s ,',np.linalg.norm(u_jk-u_h), np.max(u_zvezno))
 title = '2D zvezna ft'
 
-# %%    3. kombinirana metoda
+# %%    4. kombinirana metoda
 t = timer()
 pas_sr = -(4-2*np.cos(m*np.pi/N))
 pas_sp = pas_zg = np.ones((pas_sr.size-1))
 
-G_m_k = fft.dst(g_jk,axis=1)
+G_m_k = fft.dst(g_jk, axis=1, type=1)
 desna = h**2*G_m_k
-
-#drugacni RP
-i=N//2 #y os
-j=0 #x os - NE DELA?!
-# for i in range(0,N-1):
-if i==0:
-    pas_zg[j+i*N] = 0
-elif i==N:
-    pas_sp[j+i*N] = 0
-else:
-    pas_sp[j+i*N] = pas_zg[j+i*N] = 0
-pas_sr[i,j] = 1
-desna[i,j] = -1
-print(desna.shape,pas_sp.shape,pas_sr.shape)
+# RP: povsod na robu Dirichlet NIČ! -> že v DST!
+Trp=0 #Dirichlet RP (spl)
+print(desna.shape,pas_sp.shape,pas_sr.shape, pas_zg.shape)
 
 U_m_k = TDMAsolver(pas_sp, pas_sr, pas_zg, desna)
 
-u_jk = fft.idst(U_m_k,axis=1)
+u_jk = fft.idst(U_m_k, axis=1, type=1)
+u_jk += Trp
 t_komb = timer()-t
 u_komb = u_jk
 u_h = u_homog(np.max(u_jk))
-print('3. kombinirana:',t_komb,'s ,',np.linalg.norm(u_jk-u_h))
+print('4. kombinirana:',t_komb,'s ,',np.linalg.norm(u_jk-u_h), np.max(u_komb))
 title = 'kombinirana'
 
-# %%    4. SOR
+# plt.contourf(X,Y,u_jk)
+# plt.colorbar()
+# plt.show()
+
+# %%    5. SOR
 N_iter = 500 #max iter
-tol = 1e0 #toleranca rešitve (leva - desna stran), 10^-6 je prehudo!
+tol = 1e-3 #toleranca rešitve (leva - desna stran), 10^-6 je prehudo!
 omega = 2/(1+np.pi/N) #ocena
 t = timer()
 title = 'SOR'
@@ -273,9 +289,9 @@ u_jk = u_jk.reshape((N,N))
 t_sor = timer()-t
 u_sor = u_jk
 u_h = u_homog(np.max(u_jk))
-print('4. SOR:',t_sor,'s ,', np.linalg.norm(u_jk-u_h), f'N_iter = {n_iter_sor}, residual = {residual_sor}')
+print('5. SOR:',t_sor,'s ,', np.linalg.norm(u_jk-u_h), f'N_iter = {n_iter_sor}, residual = {residual_sor}, {np.max(u_sor)}')
 
-#%% 5. Gauss-Seidel -> zelo počasi!
+# %%    6. Gauss-Seidel -> zelo počasi!
 N_iter = 10*N_iter #max iter - 10x več od SOR!
 # tol = 1e-3 #toleranca rešitve (leva - desna stran) - isto kot SOR
 t = timer()
@@ -286,18 +302,17 @@ u_jk = u_jk.reshape((N,N))
 t_gs = timer()-t
 u_gs = u_jk
 u_h = u_homog(np.max(u_jk))
-print('5. Gauss-Seidel:',t_gs,'s ,', np.linalg.norm(u_jk-u_h), f'N_iter = {n_iter_gs}, residual = {residual_gs}')
+print('6. Gauss-Seidel:',t_gs,'s ,', np.linalg.norm(u_jk-u_h), f'N_iter = {n_iter_gs}, residual = {residual_gs}, {np.max(u_gs)}')
 
 t=timer()
 u_lu = np.linalg.solve(A,g).reshape((N,N))
 u_h = u_homog(np.max(u_lu))
-print(f'6. Eksaktno: {timer()-t} s, {np.linalg.norm(u_lu-u_h)}')
+print(f'7. Eksaktno: {timer()-t} s, {np.linalg.norm(u_lu-u_h)}, {np.max(u_lu)}')
 
 # %%    plot
 pointsize=3
 u=u_jk.reshape((N,N))
 max_u = np.max(u)
-x,y=np.meshgrid(x,y)
 
 # sc=plt.contourf(x,y,u_jk,cmap='turbo')
 # #sc=plt.scatter(x,y,c=u,s=pointsize)
@@ -305,7 +320,6 @@ x,y=np.meshgrid(x,y)
 # cbar_ticks = list(cbar.get_ticks()[:-1])  # Get existing ticks
 # cbar_ticks.append(max_u)  # Add max(u) to the ticks
 # cbar.set_ticks(cbar_ticks)
-
 # plt.axis('equal')
 # plt.xlabel('$x$')
 # plt.ylabel('$y$')
@@ -315,50 +329,107 @@ x,y=np.meshgrid(x,y)
 # plt.show()
 
 #vse
-fig, ax = plt.subplots(1,6, figsize=(15,3))
+fig, ax = plt.subplots(1,7, figsize=(20,4), gridspec_kw={'wspace':0.1})
 vmin = min(u_2d_sin.min(), u_komb.min(), u_sor.min(), u_gs.min(), u_zvezno.min())
 vmax = max(u_2d_sin.max(), u_komb.max(), u_sor.max(), u_gs.max(), u_zvezno.max())
-print(vmax,vmin)
+v_max= max([vmax,abs(vmin)])
+vmin /= v_max
+vmax /= v_max
+levels = np.round(np.linspace(vmin, vmax, 11),1)
 
 ax_i = ax[0]
-ax_i.contourf(X, Y, u_2d_sin, cmap='turbo', vmin=vmin, vmax=vmax)
+cont=ax_i.contourf(X, Y, u_2d_sin/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
 ax_i.axis('equal')
-ax_i.set_title(f'2D sin FFT')
+ax_i.set_title(f'2D sin FFT\n', wrap=True)
 ax_i.axis('off')
 
 ax_i = ax[1]
-sc = ax_i.contourf(X, Y, u_komb, cmap='turbo', vmin=vmin, vmax=vmax)
+cont=ax_i.contourf(X, Y, u_komb/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
 ax_i.axis('equal')
-ax_i.set_title(f'kombinirana')
+ax_i.set_title(f'kombinirana\n', wrap=True)
 ax_i.axis('off')
 
 ax_i = ax[2]
-ax_i.contourf(X, Y, u_sor, cmap='turbo', vmin=vmin, vmax=vmax)
+cont=ax_i.contourf(X, Y, u_sor/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
 ax_i.axis('equal')
-ax_i.set_title(f'SOR, $N_{{iter}}={n_iter_sor}$')
+ax_i.set_title(f'SOR\n$N_{{iter}}={n_iter_sor}$', wrap=True)
 ax_i.axis('off')
 
 ax_i = ax[3]
-ax_i.contourf(X, Y, u_gs, cmap='turbo', vmin=vmin, vmax=vmax)
+cont=ax_i.contourf(X, Y, u_gs/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
 ax_i.axis('equal')
-ax_i.set_title(f'Gauss-Seidel, $N_{{iter}}={n_iter_gs}$')
+ax_i.set_title(f'Gauss-Seidel\n$N_{{iter}}={n_iter_gs}$', wrap=True)
 ax_i.axis('off')
 
-ax[-1].axis('off')
-cbar=fig.colorbar(sc,label='u', ax=ax[-1], location='left')
-cbar_ticks = list(cbar.get_ticks()[:-1])  # Get existing ticks
-cbar_ticks.append(vmax)  # Add max(u) to the ticks
-cbar.set_ticks(cbar_ticks)
-
-#le homogena opna
 ax_i = ax[4]
-# ax_i.contourf(X, Y, u_zvezno, cmap='turbo', vmin=vmin, vmax=vmax)
-# ax_i.set_title(f'Zvezna FT')
-ax_i.contourf(X, Y, u_lu, cmap='turbo', vmin=vmin, vmax=vmax)
-ax_i.set_title(f'Eksaktna rešitev')
+cont=ax_i.contourf(X, Y, u_lu/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
+ax_i.set_title(f'eksaktna rešitev\nsistema enačb', wrap=True)
 ax_i.axis('equal')
 ax_i.axis('off')
 
-plt.suptitle(f'št.točk $N={N*N}$')
+# OK le za homogena opna!
+ax_i = ax[5]
+ax_i.contourf(X, Y, u_zvezno/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
+ax_i.set_title(f'zvezna FT\n')
+ax_i.axis('equal')
+ax_i.axis('off')
+
+ax_i = ax[6]
+cont=ax_i.contourf(X, Y, u_1d_sin/v_max, cmap='turbo', vmin=vmin, vmax=vmax, levels=levels)
+ax_i.axis('equal')
+ax_i.set_title(f'1D sin FFT\n', wrap=True)
+ax_i.axis('off')
+
+cbar_ax = fig.add_axes([0.88, 0.175, 0.05, 0.7])
+cbar_ax.axis('off')
+norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+sm = cm.ScalarMappable(cmap='turbo', norm=norm)
+sm.set_array([])
+cbar=fig.colorbar(sm, ax=cbar_ax)
+cbar.set_label('$\\frac{u}{u_{max}}$', fontsize=20)
+cbar.set_ticks(levels)
+
+fig.suptitle(f'št. računskih točk $N={N*N}$')
+plt.subplots_adjust(top=0.75)
+plt.tight_layout(rect=[0, 0, 0.92, 0.9])
+plt.savefig(f'./slike/metode_{ime}_r{ratio}', bbox_inches='tight') #shranjevanje OK, prikaz ne!
+plt.show()
+
+# %% max poves
+fig=plt.figure(figsize=(10,4))
+gs=fig.add_gridspec(1,2, wspace=0)
+ax = gs.subplots(sharey=True)
+ax[0].plot(x, u_1d_sin[N//2,:], label='1D sin FFT')
+ax[0].plot(x, u_2d_sin[N//2,:], '--',label='2D sin FFT')
+ax[0].plot(x, u_zvezno[N//2,:], label='zvezna FT')
+ax[0].plot(x, u_komb[N//2,:], label='kombinirana')
+ax[0].plot(x, u_sor[N//2,:], label='SOR')
+ax[0].plot(x, u_gs[N//2,:], label='Gauss-Seidel')
+ax[0].plot(x, u_lu[N//2,:], label='eksaktno')
+ax[0].set_xlabel('$x$')
+ax[0].set_ylabel('$u$')
+ax[0].minorticks_on()
+
+ax[1].plot(x, u_1d_sin[:,N//2], label='1D sin FFT')
+ax[1].plot(x, u_2d_sin[:,N//2], '--', label='2D sin FFT')
+ax[1].plot(x, u_zvezno[:,N//2], label='zvezna FT')
+ax[1].plot(x, u_komb[:,N//2], label='kombinirana')
+ax[1].plot(x, u_sor[:,N//2], label='SOR')
+ax[1].plot(x, u_gs[:,N//2], label='Gauss-Seidel')
+ax[1].plot(x, u_lu[:,N//2], label='eksaktno')
+ax[1].set_xlabel('$y$')
+ax[1].minorticks_on()
+ax[1].legend(loc='upper left', bbox_to_anchor=(1,1))
 plt.tight_layout()
+plt.savefig(f'./slike/prerez_{ime}_r{ratio}')
+plt.show()
+
+u_max = np.array([np.max(u_1d_sin), np.max(u_2d_sin), np.max(u_zvezno), np.max(u_komb), np.max(u_sor), np.max(u_gs), np.max(u_lu)])
+plt.figure(figsize=(8,4))
+plt.plot(u_max, 'kx')
+plt.xticks(np.arange(7),['1D sin\nFFT', '2D sin\nFFT', 'zvezna\nFT', 'kombinirana', 'SOR', 'Gauss-Seidel', 'eksaktno'])
+plt.ylabel('$u_{max}$')
+plt.minorticks_on()
+plt.tight_layout()
+plt.savefig(f'./slike/Umax_{ime}_r{ratio}')
 plt.show()

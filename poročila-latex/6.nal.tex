@@ -1,0 +1,168 @@
+\section{Lastne oblike in frekvence kvadratne opne}
+
+V tej nalogi obravnavamo problem lastnih vrednosti nihanja opne v 2D
+\begin{equation}
+    \nabla^2\;u = -\lambda\;u,
+\end{equation}
+kjer je $\lambda=k^2$ lastna vrednost. Robni pogoji so Dirichletovi $u=0$, valovno število $k^2=\frac{\omega^2\,\rho\,d}{\gamma}$, kjer je $\omega=2\,\pi\,f$ krožna frekvenca, $\rho=1$ gostota, $d=1$ debelina in $\gamma=1$ linijska obremenitev opne na robu.
+
+V Kartezijsvem koordinatnem sistemu se Laplaceov operator diskeritiza po metodi končnih razlik v matriko $\mathbf{A}$, ki ima vrednosti 4 na diagonali, na preostalih štirih izven-diagonalnih delih ima vrednost -1. Matriko delimo še z kvadratom koraka $h=\Delta x=\Delta y$, nakar lahko uporabimo metode za reševanje problema lastnih vrednosti, kot so \\\texttt{scipy.linalg.eig}, \texttt{scipy.sparse.eigs}, Jakobijeva iteracija ... oziroma inverzno potenčno metodo v treh vrsticah
+\begin{align}
+    y_{i+1} &= (A-\sigma\,I)^{-1}\cdot x_i\\\nonumber
+    x_{i+1} &= \frac{y_{i+1}}{\norm{y_{i+1}}}\\\nonumber
+    \lambda_{i+1} &= x_{i+1}^T\cdot A\cdot x_{i+1},
+\end{align}
+če nas zanima le posamezna lastna vrednosti najbližje parametru $\sigma$.
+
+\subsection{Homogena opna}
+
+V tem primeru je matrika $\mathbf{A}$ simetrična, zato lahko uporabimo metode za Hermitske matrike (npr. \texttt{numpy.linalh.eigh}), kar občutno pospeši izračun, obenem pa ni potrebe po uporabi posplošenega problema lastnih vrednosti z matriko desnih strani $B$.
+
+Na sledečih slikah so prikazane lastne oblike in vrednosti za različne metode, kjer opazimo, da so rezultati primerljivi, sploh za prvih 4 lastnih oblik. Pri višjih ima Jacobi težave, prav tako pa rihaja do manjših odstopanj med direktnim reševanjem iz z algoritmom ARPACK. Vseeno je MAC kriterij (Modal Assurance Criterion) v vseh primerih precej visok, zato ga ne prikazujemo.
+
+\fig{H}{1}{./6.nal_slike/homogena/lastne_homog}{Lastne oblike in frekvence homogene opne}{}
+\fig{H}{0.7}{./6.nal_slike/homogena/sparse_homog}{ARPACK iz \texttt{scipy.sparse}}{}
+\fig{H}{0.7}{./6.nal_slike/homogena/jacobi_homog}{Jacobi algoritem diagonalizacije}{}
+
+Opazimo, da lastne frekvence (in posledično vrednosti) zavzemajo diskretne nivoje, kjer se na nekaterih nahaja tudi več lastnih oblik, katerim je skupno to, da imajo enako število vrhov.
+
+ARPACK algoritem, ki je v ozadju \texttt{scipy.sparse.linalg.eigsh}, omogoča izračun manjšega števila lastnih vrednosti, zato sem analizairal le prvih 9 najmanjših. računski čas je primerljiv z direktno metodo (\texttt{scipy.linalg.eigh}), vendar je pri velikih matrikah ARPACK učinkoviteši, ako potrebujemo le nekaj lastnih oblik. Jacobi je očitno precej počasnejši, reda $\mathcal{O}(n^3)$, čemur verjetno pripomore tudi slabša implementacija v Pythonu.
+
+\fig{H}{0.7}{./6.nal_slike/homogena/frekvence_homog}{Lastne frekvence homogene opne za različne metode}{}
+\fig{H}{0.7}{./6.nal_slike/homogena/cas_homog_30000s}{Računski čas -- primerjava metod}{}
+
+%vpeljava gostote!
+\subsection{Nehomogena opna}
+
+Če je opna nehomogena, se enačba spremeni
+\begin{equation}
+    \nabla^2\;u = -\lambda\,\rho\,u,
+\end{equation}
+kjer gostota $\rho$ ni več konstantna, lastna vrednost pa predstavlja $\lambda = \frac{\omega^2\,d}{\gamma}$. Tako sledi po MKR diskretiziran zapis
+\begin{equation}
+    \mathbf{A}\,\mathbf{u} = -\lambda\,\mathbf{B}\,\mathbf{u},
+\end{equation}
+pri katerem gre za posplošeni problem lastnih vrednosti, saj imamo na desni strani matriko $B$, ki je slična gostoti, zaradi česar ostane matrika $A$ simetrična.
+
+Za drug način pa enačbo zapišemo v obliki
+\begin{equation}
+    \frac{1}{\rho}\;\nabla^2\;u = -\lambda\;u,
+\end{equation}
+kjer po dikretizaciji z MKR matrike $B$ ni, zato pa $A$ postane nesimetrična! To pomeni, da moramo uporabiti splošne metode za reševanje problema lastnih vrednosti cele matrike, ki so občutno počasnejše.
+
+Na spodnji sliki je prikazan izračun lastnih vrednosti homogene opne po različnih metodah, kjer posplošeno označuje funkcijo iz SciPy \texttt{eigh} oz. \texttt{eigsh} za redke (sparse) matrike in za nesimetrične \texttt{eig} oz. \texttt{eigs}. Pri tem velja poudariti, da je bilo potrebno pri funkcijah za redke matrike lastne vrednosti še dodatno razvrstiti po velikosti.
+\fig{H}{0.7}{./6.nal_slike/homogena/eigval_homog}{Lastne vrednosti homogene opne}{}
+
+
+% \fig{H}{0.8}{./6.nal_slike/}{}{}
+
+\subsubsection{`f'-opna}
+
+Uporabimo porazdelitev gostote kot na predlogi, kjer belo območje predstavlja $\rho_1=1$, črno pa $\rho_2=ratio$. Pri tem $ratio=\frac{\rho_2}{\rho_1}$ predstavlja razmerje gostot.
+\fig{H}{0.3}{./6.nal_slike/opna_f}{Porazdelitev gostote}{}
+
+%%Ratio=100
+Najprej preverim konvergenco pri $ratio = 100$. Pri tem $N$ predstavlja število točk po koordinatni osi, torej je vseh točk v vektorju $u$ $N^2$. Pri tem opazim, da računski čas močno naraste, lastna vrednost pa se nad cca. $N=50$ malo spreminja. Presenetljivo je, da največja amplituda v prvi lastni obliki upada, vendar je konvergenca očitno počasnejša.
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{./6.nal_slike/f_r100/cas_N}{Odvisnost računskega časa od št. točk na robu $N$}{}
+    \minifig{0.48}{./6.nal_slike/f_r100/eigval_min_N}{Odvisnost najmanjše lastne vrednosti od št. točk na robu $N$}{}
+\end{figure}
+\fig{H}{0.48}{./6.nal_slike/f_r100/Xmax_N}{Odvisnost največje amplitude v prvi lastni obliki od št. točk na robu $N$}{}
+
+Glede rezultatov je zanimivo, da ima ARPACK z večanjem/manjšanjem $ratio$ težave pri izračunu, dočim preostale metode ne. Prikažem le lastne oblike in lastne vrednosti za $ratio=100$ in $ratio=1/100$ in pri tem opazim, da večanje $ratio$ znižuje lastne vrednosti, zmanjševanje pa zvišuje, glede na homogeno opno ($ratio=1$).
+
+Lastne oblike so prikazane za primer reševanja posplošenega problema. Pri sparse solverju so podobne, pri nesimetričnem pa sem imel malenkost več težav pri lastnih oblikah.
+
+\fig{H}{0.8}{./6.nal_slike/f_r100/lastne}{Lastne oblike `f'-opne z $ratio = 100$}{}
+\fig{H}{0.7}{./6.nal_slike/f_r100/eigval}{Lastne vrednosti, $ratio = 100$}{}
+
+% Ratio = 1/100
+\fig{H}{0.8}{./6.nal_slike/f_r0.01/lastne}{Lastne oblike `f'-opne z $ratio = 1/100$}{}
+\fig{H}{0.7}{./6.nal_slike/f_r0.01/eigval}{Lastne vrednosti, $ratio = 1/100$}{}
+
+\subsubsection{Kvadratna obtežba}
+
+Zamislimo si še dva primera obtežbe, kjer je gostota na belem območju enaka $\rho_1=1$, na črnem pa $\rho_2=ratio$. Pri tem $ratio=\frac{\rho_2}{\rho_1}$ predstavlja razmerje gostot, enako kot prej.
+\begin{figure}[H]
+    \centering
+    \subfig{0.3}{./6.nal_slike/opna_sr}{zgostitev na sredini}{}
+    \subfig{0.3}{./6.nal_slike/opna_vogal}{zgostitev na vogalu}{}
+    \caption{Porazdelitev gostote}
+\end{figure}
+
+%primerjava opne
+Sledi primerjava za vse tri različne obtežbe opne in razmerja gostot $ratio$. Opazimo, da to ne vpliva na računski čas pri posplošenem načinu, kar je prikazano na spodnji sliki, vendar močno vpliva na sparse način.
+
+Bolj zanimiva je odvisnost prve lastne vrednosti in največje amplitude prve lastne oblike, ki zgleda, da se spreminjajo zvezno. V splošnem se obe vrednosti zmanjšujeta z večanjem $ratio$.
+
+\fig{H}{0.7}{./6.nal_slike/cas_ratio}{Odvisnost računskega časa od $ratio$}{}
+\fig{H}{0.7}{./6.nal_slike/eigval_min_ratio}{Odvisnost med prvo lastno vrednostjo in $ratio$}{}
+\fig{H}{0.7}{./6.nal_slike/Xmax_ratio}{Odvisnot med največjo amplitudo prve lastne oblike in $ratio$}{}
+
+%primerjava last obl
+Sledi še primerjava lastnih oblik pri različnih obtežbah, za kar uporabimo MAC (Modal Assurance Criterion) za statistično primerjavo (skaldnost/podobnost) dveh vektorjev lastnih oblik in je definiran kot
+\begin{equation}
+    \text{MAC}(\phi_l, \phi_k) = \frac{|\phi_l^{*T} \phi_k|^2}{(\phi_l^{*T} \phi_l)(\phi_k^{*T} \phi_k)},
+\end{equation}
+kjer $\phi_l^{*T}$ predstavlja kompleksno konjugirano in transponirano lastno obliko. Če sta $\phi_l$ in $\phi_k$ identični, bo MAC enak 1, če sta popolnoma različni pa 0.
+
+Opazimo, da si lastne oblike bolj podobne pri nizkem $ratio$, kot pri visokem. Prav tako s približevanjem $ratio \rightarrow 1$ pričakovano narašča podobnost lastnih oblik, saj postajao opne tembolj homogene.
+
+\begin{figure}[H]
+    \centering
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_sr_r100}{f in sredina}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_vogal_r100}{f in vogal}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_sr_vogal_r100}{sredina in vogal}{}
+    \caption{MAC za lastne oblike opne z različnimi oblikami obtežitev, $ratio=100$}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_sr_r10}{f in sredina}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_vogal_r10}{f in vogal}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_sr_vogal_r10}{sredina in vogal}{}
+    \caption{MAC za lastne oblike opne z različnimi oblikami obtežitev, $ratio=10$}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_sr_r0.1}{f in sredina}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_vogal_r0.1}{f in vogal}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_sr_vogal_r0.1}{sredina in vogal}{}
+    \caption{MAC za lastne oblike opne z različnimi oblikami obtežitev, $ratio=1/10$}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_sr_r0.01}{f in sredina}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_f_vogal_r0.01}{f in vogal}{}
+    \subfig{.45}{./6.nal_slike/MAC_opne/MAC_sr_vogal_r0.01}{sredina in vogal}{}
+    \caption{MAC za lastne oblike opne z različnimi oblikami obtežitev, $ratio=1/100$}
+\end{figure}
+
+\section{Polkrožna opna}
+
+Polkrožno opno obravnavamo v polarnem koordinatnem sistemu in dobimo podobno 5-diagonalno simetrično matriko $A$ kot prej, le z nekoliko drugačnimi koeficienti, ter matriko desnih strani $B$, v kolikor je opna nehomogena. Nehomogenost sem obravnaval na preprost način kot naraščanje/padanje gostote v radialni smeri. Robni pogoji so Dirichletovi $u=0$.
+
+\begin{figure}[H]
+    \centering
+    \subfig{.48}{./6.nal_slike/zgosc_navzven/gostota}{zgoščevanje navzven}{}
+    \subfig{.48}{./6.nal_slike/zgosc_noter/gostota}{zgoščevanje navznoter}{}
+    \caption{Porazdelitev gostote med 1 in 10}
+\end{figure}
+
+Uporabil sem $N=N_r=N_{\phi}=50$ v radialni in obodni smeri. Pri uporabi sparse solverja iz \texttt{scipy.sparse.eigsh} za nehomogene opne sem ugotovil, da ima težave pri izračunu nizkih lastnih vrednosti, kar se odraža v slabi konvergenci in dolgih računskih časih. To sem preprosto odpravil z uporabo \href{https://docs.scipy.org/doc/scipy/tutorial/arpack.html} {shift-invert mode}, nato je sparse očitno hitrejši!. Pričakovano so pri nehomogenih opnah daljši računski časi.
+
+Pri homogeni opni dobimo ustrezne lastne oblike, vendar sem pri sparse metodi imel težave, saj ni zaznala prve lastne oblike. Ugotovil sem, da je temu krivo dejstvo, da s parametrom $\sigma=0$ iščemo lastne vrednosti, ki so blizu 0, kar je pričakovano prva lastna oblika, vendar so v tem primeru prve lastne oblike negativne! Zato bi moral uporabiti  drugačen parameter. Taista težava je tudi pri inverzni potenčni metodi, ki je pri $\sigma=0$ konvergirala k višjim lastnim vrednostim.
+
+Opazimo, da zgoščevanje navzven poudari prve lastne oblike in močno zniža lastne vrednosti, dočim za navznoter obratno. Na slikah lastnih oblik so prikazane absolutne vrednosti amplitud!
+
+\fig{H}{1}{./6.nal_slike/polkrog/homog}{Lastne oblike homogene opne}{}
+
+\fig{H}{1}{./6.nal_slike/zgosc_navzven/nehomog}{Lastne oblike pri zgoščevanju navzven}{}
+\fig{H}{1}{./6.nal_slike/zgosc_noter/nehomog}{Lastne oblike pri zgoščevanju navznoter}{}
+
+Opomba: Zaradi uporabi shift-invert metode pri sparse solverju, lastne vrednosti niso pravilno prikazane. Homogene so zamaknjene za 1, navzven zgoščevane za 4 in navznoter brez zamika. Ob upoštevanju tega so izračuni bolj skladni.
+\fig{H}{.65}{./6.nal_slike/zgosc_navzven/eigval}{Lastne vrednosti homogene opne in zgoščevane navzven}{}
+\fig{H}{.65}{./6.nal_slike/zgosc_noter/eigval}{Lastne vrednosti navznoter zgoščevane opne}{}
+
+\fig{H}{.6}{./6.nal_slike/zgosc_navzven/čas}{računski čas homogene opne in zgoščevane navzven}{}
+\fig{H}{.6}{./6.nal_slike/zgosc_noter/čas}{računski čas navznoter zgoščevane opne}{}

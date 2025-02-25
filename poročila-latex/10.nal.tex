@@ -1,0 +1,115 @@
+\section{Poves kvadratne opne}
+
+Poissonovo enačbo
+\begin{equation}
+    \nabla^2 u(x,y) = g(x,y)
+\end{equation}
+rešujemo direktno s Fourierovo transformacijo. Zaradi Dirichletovih robnih pogojev ($u_{RP}=0$) je ceneje uporabiti hitro (diskretno) sinusno transformacijo (DFT) v dveh dimenzijah, kjer z malimi črkami označujemo veličine v časovnem in z velikim v frekvenčnem prostoru
+\begin{equation}
+    G^{m n} = \sum_{j=1}^{J-1} \sum_{\ell=1}^{L-1} g_{j \ell} \, \sin  \frac{\pi m j}{J} \sin \frac{\pi n \ell}{L}.
+\end{equation}
+Alternativa je dvojna DFT v eni dimenziji, posebej po vrsticah in stolpcih.
+Tako se potem glasi rešitev v frekvenčnem prostoru
+\begin{equation}
+    U^{m n} = \frac{h^2}{2}\,\frac{G^{m n}}{2\,\cos{\frac{\pi m}{J}} + \cos{\frac{\pi n}{L}} -2},
+\end{equation}
+kjer je $h=h_x=h_y$ diskretizacijski korak. Nazaj v fizikalni prostor se vrnemo z inverzno DFT v 2D.
+
+Problem lahko rešimo tudi s kombinirano metodo, kjer izvedemo 1D DST, nam v preostali smeri ostane tridiagonalni sistem enačb za delne transformiranke $U_j^m$
+\begin{equation}
+    U_{\ell-1}^m -U_{\ell}^m\,(4-2\,\cos{\frac{\pi m}{J}}) + U_{\ell+1}^m = h^2\,G_{\ell}^m,
+\end{equation}
+
+Za drugi način po Metodi končnih razlik (MKR)  diskretiziramo računsko domeni in rešujemo dobljen sistem linearnih enačb eksaktno ali iterativno (SOR, Gaus-Seidel), kot smo to storili v nalogi 6.
+
+\subsection{Homogena opna}
+
+V tem primeru je desna stran enačbe (porazdelitev mase) $g(x,y) = g_{j\ell} = 1$ po celotni opni. Za ta primer lahko uporabimo tudi naivno seštevanje Fourierovih vrst po enačbi, ki je definirana v navodilih, vendar, kot se izkaže, ta način ni preveč hiter; uporaba FFT algoritma precej pospeši računanje.
+
+\fig{H}{1}{./10.nal_slike/metode_homogena_r1}{Poves homogene opne, izračunan z različnimi metodami}{}
+
+\fig{H}{0.9}{./10.nal_slike/prerez_homogena_r1}{Prerez preko koordinatnih osi}{}
+
+\fig{H}{0.75}{./10.nal_slike/Umax_homogena_r1}{Največji poves homogene opne po različnih metodah}{}
+
+\subsection{Pravokotna obtežitev}
+
+\subsubsection{Obtežitev na robu}
+
+\begin{figure}[H]
+    \centering
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na robu_r2}{$ratio=2$}{}
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na robu_r10}{$ratio=10$}{}
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na robu_r100}{$ratio=100$}{}
+    \caption{Poves nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na robu_r2}{$ratio=2$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na robu_r10}{$ratio=10$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na robu_r100}{$ratio=100$}{}
+    \caption{Prerez preko koordinatnih osi nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na robu_r2}{$ratio=2$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na robu_r10}{$ratio=10$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na robu_r100}{$ratio=100$}{}
+    \caption{Največji poves nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\subsubsection{Obtežitev na sredini}
+
+\begin{figure}[H]
+    \centering
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na sredini_r2}{$ratio=2$}{}
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na sredini_r10}{$ratio=10$}{}
+    \subfig{1}{./10.nal_slike/metode_nehomogena-kvadrat na sredini_r100}{$ratio=100$}{}
+    \caption{Poves nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na sredini_r2}{$ratio=2$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na sredini_r10}{$ratio=10$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_nehomogena-kvadrat na sredini_r100}{$ratio=100$}{}
+    \caption{Prerez preko koordinatnih osi nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na sredini_r2}{$ratio=2$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na sredini_r10}{$ratio=10$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_nehomogena-kvadrat na sredini_r100}{$ratio=100$}{}
+    \caption{Največji poves nehomogene opne z različnimi razmerji obtežitve na robu}
+\end{figure}
+
+\subsection{Obtežitev `f' iz naloge 6}
+
+\begin{figure}[H]
+    \centering
+    \subfig{1}{./10.nal_slike/metode_f-opna_r2}{$ratio=2$}{}
+    \subfig{1}{./10.nal_slike/metode_f-opna_r10}{$ratio=10$}{}
+    \subfig{1}{./10.nal_slike/metode_f-opna_r100}{$ratio=100$}{}
+    \caption{Poves nehomogene opne z različnimi razmerji obtežitve}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.8}{./10.nal_slike/prerez_f-opna_r2}{$ratio=2$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_f-opna_r10}{$ratio=10$}{}
+    \subfig{0.8}{./10.nal_slike/prerez_f-opna_r100}{$ratio=100$}{}
+    \caption{Prerez preko koordinatnih osi nehomogene opne z različnimi razmerji obtežitve}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./10.nal_slike/Umax_f-opna_r2}{$ratio=2$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_f-opna_r10}{$ratio=10$}{}
+    \subfig{0.48}{./10.nal_slike/Umax_f-opna_r100}{$ratio=100$}{}
+    \caption{Največji poves nehomogene opne z različnimi razmerji obtežitve}
+\end{figure}
+
+\section{Prevod toplote v valju}

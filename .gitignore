@@ -1,0 +1,25 @@
+# Directories with different data
+ODDAJA/
+__pycache__/
+analiza-vaje/
+mesh/cev_files/
+mesh/polkrog_cev_abaqus/
+slike/
+
+# Temporary compiler files
+*.gz
+*.out
+*.log
+*.blg 
+*.bbl 
+*.aux 
+
+# Specific files
+main.pdf
+main.tex
+Non-linear_dynamics_of_a_hanging_rope.pdf
+gnana_kotanja.wbpj
+mesh/cev.wbpj
+
+# Images in directory
+9.nal_MRE/*.pdf

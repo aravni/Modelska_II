@@ -1,0 +1,150 @@
+% LTeX: enabled=false
+% \fig{H}{1}{./8.nal_slike/}{}{}
+
+\section{Homogena kvadratna opna}
+
+Najprej sem metodo končnih elementov (MKE) preizkusil na homogeni kvadratni domeni v dveh dimenzijah. Rešujemo problem lastnih vrednosti
+\begin{equation}
+    \nabla^2\,u + k^2\,u = 0,
+\end{equation}
+ki ga diskretiziramo z MKE
+\begin{equation}
+    \bm{K}\cdot\bm{U} + k^2\,\bm{M}\cdot\bm{u} =0,
+\end{equation}
+na globalno togostno $\bm{K}$ in masno $\bm{M}$ matriko. Pri tem uporabimo linearne trikotne končne elemente (KE), ki jih definiramo s tremi vozlišči $i,j,k$. Za vsak element definiramo lokalni togostni in masni matriki
+\begin{equation}
+    \bm{K}_{ijk} = \frac{1}{4\,S_{ijk}} \left[ (x_i - x_k)(x_k - x_j) + (y_i - y_k)(y_k - y_j) \right],
+\end{equation}
+\begin{equation}
+    \bm{M}_{ijk} = \frac{S_{ijk}}{12} \; \bm{I},
+\end{equation}
+ki ju sestavimo v globalni matriki $\bm{K}$ in $\bm{M}$, pri čemer upoštevamo indekse vozlišč v vektorju neznank $\bm{U}$. Pri tem je $S_{ijk}$ ploščina trikotnika, ki ga tvorijo vozlišča $i,j,k$.
+
+\noindent $->$ Opomba: Lokalna masna matrika je diagonalna, globalna pa le pasovna!
+
+Robni pogoji so Diricheltovi $U_i = 0$, kar lahko zagotovimo tako, da izločimo vrstice in stolpce globalnih matrik, ki ustrezajo vozliščem na robu domene. Ker je brisanje vrstic in stolpcev zoprno z vidika spreminjajočih se indeksov, sem uporabil način, da definiram v vrstici in stolpcu togostne matrike z indeksom $i$, ki ustreza vozlišču na robu domene vrednost nič, le na mestu $K_{ii}$ določim visoko togost (v tem primeru 1e6), kar onemogoči premike, vendar previsoka vrednosti lahko povzroča numerične nestabilnosti pri reševanju sistema. Masno matriko pustim nedotaknjeno.
+
+V tem primeru sem izračunane lastne vrednosti in oblike z MKE primerjal z analitičnimi
+\begin{align}
+    \mathcal{U}_{m n}(x,y) &= \sin\left(\frac{m\pi x}{L}\right)\sin\left(\frac{n\pi y}{L}\right), \\\nonumber
+    k &= \sqrt{(m\,\pi)^2 + (n\,\pi)^2}, \quad m,n = 1,2,3\ldots
+\end{align}
+
+Mrežo točk generiram enakomerno in z Delaunay triangulacijo, kar je razvidno na spodnji sliki. Opazim, da sta prvi dve lastni vrednosti zelo blizu analitičnim, sledeče pa so že precej oddaljene, vendar se z zgoščevanjem mreže stanje izboljšuje. Lastne oblike so smiselne tudi pri višjih lastnih vrednostih, odstopanja od analitičnih so predvsem v amplitudah.
+
+\begin{figure}[H]
+    \centering
+    \minifig{0.48}{./8.nal_slike/mreza_kvadrat_N900}{Mreža za kvadratno domeno z 900 vozlišči}{}
+    \minifig{0.48}{./8.nal_slike/last_vred_kvadrat_N10000}{Izračunane lastne vrednosti}{}
+\end{figure}
+
+\fig{H}{1}{./8.nal_slike/last_obl_kvadrat_N10000}{Rezultati lastnih oblik z 10~000 vozliščno mrežo}{}
+
+\section{Homogena polkrožna opna}
+
+Sedaj preizkusimo metodo na polkrožni domeni. Pri tem lahko uporabimo različne načine tvorbe točk, kar je prikazano na spodnji sliki. V primeru polarnega koor. sistema je v središču velika zgostitev točk, pri kartezičnem pa lahko prihaja do neenakomernih velikosti KE na robovih domene. Prav tako sem poizkusil na mrežah iz komercialnih programov za MKE, kot sta Ansys in ABAQUS, kjer določimo le število točk na robu.
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_polar_N901}{polarna}{}
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_cartesian_N752}{kartezična}{}
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_random polar_N991}{naključna polarna}{}
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_random cartesian_N761}{naključna kartezična}{}
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_abaqus_N801}{Abaqus}{}
+    \subfig{0.3}{./8.nal_slike/mreza_polkrog_ansys_N304}{Ansys}{}
+    \caption{Primeri mreže za polkrožno domeno z različno razporeditvijo točk}
+\end{figure}
+
+Tokrat je analitična rešitev drugačna v radialni smeri 
+\begin{equation}
+    \mathcal{U}_{m n}(r,\varphi) = J_m\left(k_{m}^n\, r\right)\,\sin(m \varphi), \quad m,n = 1,2,3\ldots,
+\end{equation}
+kjer je $k_{m}^n$ $n$-ta ničla $J_m$ Besselove funkcija prve vrste reda $m$. Način reževanja z MKE pa identičen kot pri kvadratni domeni, le da moramo upoštevati robne pogoje na mreži v polkrožni domeni!
+
+\subsection{Galerkinov nastavek}
+
+Namesto linearnih baznih vinkcij, kot pri MKE, vzamemo bolj primerne funcije za radialno smer (potenčne funkcije)
+\begin{equation}
+    \Phi_{m n}(r,\phi) = r^{m+n} \,(1-r)\,\sin(m\,\varphi), \quad n = 0,1,2\ldots,\quad m = 1,2,3\ldots
+\end{equation}
+V tem primeru dobimo bločno diagonalno togostno in masno matriko, vendar že s precej manjšim številom točk kot pri MKE lahko dobimo boljšo rešitev.
+
+\subsection{Lastne vrednosti in oblike}
+
+Na spodnji sliki je prikazano, kako se napake lastnih vrednosti razlikujejo glede na način diskretizacije, kjer na točnost lastnih vrednosti način diskretizacije ne vpliva, dočim bolj vpliva na točnost lastnih oblik, merjenih z normo razlike glede na analitično rešitev. Pri prvih treh lastnih vrednostih je napaka še razmeroma majhna, nato pa naraste, vendar je presenetljivo 5. lastna vrednost povsod precej točna.
+
+\fig{H}{1}{./8.nal_slike/last_obl_polkrog_cartesian_N8008}{Lastne oblike polkrožne opne. Kartezična mreža z 8~008 vozlišči}{}
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./8.nal_slike/napaka_polkrog_cartesian_N8008}{kartezična 8~008 vozlišč}{}
+    \subfig{0.48}{./8.nal_slike/napaka_polkrog_polar_N10001}{polarna 10~001 vozlišč}{}
+    \subfig{0.48}{./8.nal_slike/napaka_polkrog_random cartesian_N8040}{naključna kartezična 8~040 vozlišč}{}
+    \subfig{0.48}{./8.nal_slike/napaka_polkrog_random polar_N10301}{naključna polarna 10~301 vozlišč}{}
+    \caption{Napake lastnih vrednosti polkrožne opne v primerjavi z analitično rešitvijo}
+\end{figure}
+
+\subsection{Konvergenca}
+
+Opazim, da prve tri lastne vrednosti konvergirajo k analitični, za višje pa bi potreboval še gostejšo mrežo, da bi dosegel primerljivo natančnost.Velja poudariti, da je Glaerkinova metoda skoraj popolnoma točna že pri nizkem številu računskih točk in se z zgoščevanjem rešitev skoraj ne izboljša.
+
+\fig{H}{1}{./8.nal_slike/vse_tocke/last_vred}{Konvergenca prvih treh lastnih vrednosti k analitični rešitvi}{}
+
+Na spodnji sliki je konvergenca napak lastnih vrednosti še bolj nazorno prikazana, hkrati sem ocenil tudi hitrost konvergence tako, da sem v log-log prostoru na podatke `fital' linearno regresijo, kar je prikazano na sliki \ref{fig:linfit}. Zaradi narave konvergence se to ne izkaže kot smiselno pri Galerkinovi metodi, saj je $k\approx 0$ in določamo le $n$.Pričakovano se najbolje izkažeta mreži komercialnih programov, vendar lastne mreže ne zaostajajo pretiroma. Preseneča me, da se oba koeficienta gibljeta okoli vrednosti ena!
+
+\fig{H}{1}{./8.nal_slike/vse_tocke/last_vred_err_h}{Konvergenca napak lastnih vrednosti v odvisnosti od gostote diskretizacije}{fig:convergence}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./8.nal_slike/vse_tocke/linfit_1}{$k$}{}
+    \subfig{0.48}{./8.nal_slike/vse_tocke/linfit_2}{$n$}{}
+    \caption{Koficienti linearne regresije za mreže MKE na sliki \ref{fig:convergence}}\label{fig:linfit}
+\end{figure}
+
+Računski čas pričakovano narašča nad linearno, kar je pričakovano za metodo \textit{Lancoz} iz ARPACK, ki je v ozadju uporabljenega \textit{scipy.sparse.linalg.eigsh}. Pri tem je čas reševanja sistema vseeno precej manjši, kot pri Galerkinovi metodi na enakem številu točk.
+
+\fig{H}{0.6}{./8.nal_slike/vse_tocke/time}{Računski čas za sliko \ref{fig:convergence}}{}
+
+\subsubsection{Ekstrapolacija rezultatov}
+
+Ker imam v tem primeru že izračunanih več primerov z različno prostorsko diskretizacijo (gostoto mreže), lahko uporabim precej bolj preprost in poceni trik, kako bolje oceniti rezultat, brez da ponovno izvedem izračun. To se zove Richardsonova ekstrapolacija, katere rezultat je tako dober, kot če bi imeli na voljo metodo, ki ima red enak dvakratniku števila izračunov, na katerih smo izvedli ekstrapolacijo.
+
+V dokumentu \footnote[1]{Duke University, Math 563 Lecture Notes: Differentiation, Richardson Extrapolation, pomlad 202, dostopno na \href{https://services.math.duke.edu/~jtwong/math563-2020/lectures/Lec2-derivatives.pdf}{povezavi}} sem našel opis Richardsonove ekstrapolacije in enačbo
+\begin{equation}\label{eq:richardson_1}
+    A_k(h) = \frac{1}{4^k-1} \, \left(4^k\,A_{k-1}\left(\frac{h}{2}\right) - A_{k-1}\left(h\right)\right),
+\end{equation}
+ki za skalarni veličini $A(\frac{h}{2})$ in $A(h)$ izračuna nov približek. Pri tem je $k$ število vseh izračunov na prostorskih diskretizacijah v razmerju 2, zato lahko na tak način iterativno izboljšamo rezultat na 
+red $O(h^{2\,k})$.
+
+Vendar se na tak način ekstrapoliran tlak razlikuje od onega, predstavljenega pri predmetu \textit{Računalniška dinamika tekočin} na Fakulteti za strojništvo:
+\begin{equation}\label{eq:richardson_2}
+    A = A\left(\frac{h}{2\,r}\right) - \frac{A\left(\frac{h}{r}\right) - A\left(\frac{h}{2\,r}\right)}{r^p-1}, \quad p = \frac {\ln{\frac {A(h) - A\left(\frac{h}{r}\right)} {A\left(\frac{h}{r}\right)- A\left(\frac{h}{2\,r}\right)}} } {\ln{r}},
+\end{equation}
+kjer je $r$ faktor zgostitve mreže (v tem primeru štiri) in $p$ red konvergence. Za to enačbo potrebujemo natanko tri mreže s konstantnim faktorjem zgostitve. Pri tem sem uporabil prve tri mreže (najredkejše) iz prejšnjega primera, ki so pravilno zgoščene, pri lastno generiranih mrežah pa sem določil število vozlišč na robovih domene: 16,32,64, kar je sicer manj kot v Ansysu in Abaqusu. Vseeno pa rezultati niso preveč slabši, v nekaterih primerih celo presenetljivo boljši! Pričakovano se naključno generirane mreže slabše obnesejo, saj lahko prihaja do oscilirajoče konvergence.
+
+Glede rešitev opazimo, da je red konvergence $p$ okoli 2 za vse načine, razen naključno generirane kartezične mreže za prvo lastno vrednost, kjer je precej nizek. To je posledica oscilacij zaradi naključno generirane mreže, ko prihaja do natančnejših rezultatov pri redkejših mrežah, kot pri gostejših, saj so zaradi naključne porazdelitve točk nekateri KE precej nepravilnih oblik. Za odpravo takih nepravilnosti bi potebovali boljšo ekstrapolacijo.
+
+Ravno obratno pa je moč zazanati pri točnosti ekstrapolirane vrednosti glede na analitično, kjer ima 2. način ekstrapolacije precej boljše rezultat natanko za ono vrednost, ki ima izjemno nizek red konvergence!
+
+Pri ekstrapolaciji sicer pričakovano dosežemo manjše pogreške pri nižjih lastnih vrednostih, vendar so ekstrapolirane vrednosti na splošno točnejše po 1., kot po 2. načinu, kjer se vse gibljejo okoli vrednosti pogreška $0,1$, pri 1. načinu pa so vse pod njim. Prav tako imajo komercialne mreže po 1. načinu očitno boljše rezultate, kot lastne generirane mreže.
+\newpage
+\fig{H}{0.6}{./8.nal_slike/richardson/conv_order}{Red konvergence}{}
+
+\begin{figure}[H]
+    \centering
+    \subfig{0.48}{./8.nal_slike/richardson/richardson_err1}{1.način po \ref{eq:richardson_1}}{}
+    \subfig{0.48}{./8.nal_slike/richardson/richardson_err2}{2.način po \ref{eq:richardson_2}}{}
+    \caption{Napaka glede na analitično rešitev ekstrapolirane vrednosti po Richardsonu na dva načina}
+\end{figure}
+
+\section{Opna `f' iz 6.~naloge}
+
+Na spodnji sliki je prikazana mreža, ki sem jo uporabil za diskretizacijo opne `f' iz 6.~naloge. Mrežo sem generiral podobno kot v prejšnji nalogi, pri čemer sem obdržal le točke v nesenčenem delu in generiral robne točke. Delaunay triangulacija sicer pomreži tudi točke na robu zunaj domene, kar ni pravilno in zaželjeno, vendar imajo takšni končni elementi vsa vozlišča na robu, zato so v primeru Dirichletovega robnega pogoja $U=0$ vsi pomiki v KE (numerično) enaki nič!
+
+\fig{H}{0.45}{./8.nal_slike/f_opna/mreza_f_N435}{Mreža z 435 vozlišči}{}
+\fig{H}{1}{./8.nal_slike/f_opna/last_obl_f_N5000}{Lastne oblike in vrednosti 'f' opne na mreži z 5000 vozlišči}{}
+
+Opravim konvergenčno analizo prvih 7 lastnih vrednosti in opazim, da se na mrežah z nad 1000 vozlišči rešitev precej približa ekstrapolirani vrednosti. Žal analitične rešitve ne poznamo, zato lahko rezultate primerjam le z gostejšimi mrežami. Red konvergence je precej nizek, ampak primerljiv za vse lastne vrednosti. Zanimivo je, da vse konvergirajo navzdol do `prave' vrednosti. Računski čas pričakovano narašča precej hitro.
+
+\fig{H}{1}{./8.nal_slike/f_opna/last_vred}{Konvergenca prvih sedem lastnih vrednosti}{}
+\fig{H}{0.6}{./8.nal_slike/f_opna/time}{Računski čas}{}
+\fig{H}{0.6}{./8.nal_slike/f_opna/konvergence}{Red konvergence}{}

@@ -110,8 +110,8 @@ for i in range(len(εn)):
 
 # podatki iz LNMS
 # TODO ROČNO pravi modul elastičnosti E in meja plastičnosti R_p!
-εn = np.load('./Modelska_II/epsilon.npy')
-σn = np.load('/home/ravni/Desktop/Modelska_II/sigma.npy')
+εn = np.load('./Modelska_II/zaklj_nal/epsilon.npy')
+σn = np.load('./Modelska_II/zaklj_nal/sigma.npy')
 
 σt = σn*(1+εn) #Cauchy, prava napetost/true stress
 ε_log = np.log(1+εn) #logaritemska deformacija

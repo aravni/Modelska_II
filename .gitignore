@@ -5,6 +5,7 @@ analiza-vaje/
 mesh/cev_files/
 mesh/polkrog_cev_abaqus/
 slike/
+spletna/
 
 # Temporary compiler files
 *.gz

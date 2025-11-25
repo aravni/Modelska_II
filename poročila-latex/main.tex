@@ -16,6 +16,7 @@
 \usepackage{ amssymb } %pisava pisana
 \usepackage{chngcntr} %secton resets counter
 \usepackage{placeins}  % Provides \FloatBarrier command
+\usepackage{bm}
 
 % set table and figure captions
 \captionsetup[table]{skip=10pt, singlelinecheck=false}
@@ -29,6 +30,13 @@
 \counterwithin{figure}{section}
 \counterwithin{equation}{section}
 \counterwithin{table}{section}
+
+% Make footnote line over all page width
+\renewcommand{\footnoterule}{
+  \vspace*{0.5em}
+  \hrule width \textwidth height 0.4pt
+  \vspace*{0.5em}
+}
 
 \newcommand{\fig}[5]{
 \begin{figure}[#1]
@@ -46,8 +54,16 @@
 \label{#4}
 \end{subfigure}
 }
+\newcommand{\minifig}[4]{
+\begin{minipage}{#1\textwidth}
+\centering
+\includegraphics[width=\linewidth]{#2}
+\caption{#3}
+\label{#4}
+\end{minipage}
+}
 
-\title{\textbf{3. Poročilo: Lastne energije Schr{\"o}dingerjeve enačbe} \\ 
+\title{\textbf{10.~Poročilo:\\Direktno reševanje Poissonove enačbe} \\ 
 
 \vspace{2mm} \large Modelska analiza II, 2023/24}
 \author{Aljaž Ravnikar, dipl.~inž.~str.~(UN), 23232128}
@@ -55,7 +71,7 @@
 \begin{document}
 \maketitle
 
-\input{3.nal}
+\input{10.nal}
 
 % \bibliographystyle{IEEEtran_slo.bst}
 % \bibliography{reference.bib}

@@ -11,11 +11,9 @@ import matplotlib.pyplot as plt
 from scipy import linalg
 from scipy.sparse.linalg import spsolve
 from timeit import default_timer as timer
-import matplotlib
 from alignYaxes import alignYaxes
 
-matplotlib.use('TkAgg') # Qt čudne težave z Wayland
-plt.style.use('aljaz') # TODO posodobi aljaz.mplstyle !!!
+plt.style.use('aljaz')
 
 def K_e_eb(E, I, Le):
     """togostna matrika za KE Euler-Bernoulli nosilec"""
@@ -57,12 +55,13 @@ def K_e_tm(E, I, Le):
                                       [6*Le, (2-C)*Le**2,-6*Le, (4+C)*Le**2]])
     return K_lok
 
-N = 1000 # št. vozlišč, TODO zakaj samo sodo število!?
-KE = 'TG1' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
+N = 10 # št. vozlišč, TODO zakaj samo sodo število!?
+Nh = 1 # št. točk po višini prereza
+KE = 'EB' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
 
 # parametri za Newton-Raphson-ovo metodo
 tol = 1e-3
-Nmax = 100000
+Nmax = 10
 
 # snovne lastnosti
 R_p = 300 # meja plastičnosti, MPa
@@ -71,19 +70,20 @@ E = 189126 # MPa
 ν = 0.3 # Poisson
 G = E/(2*(1+ν)) # strižni modul v elast. območju, MPa
 Et = 0.003*E # konst. tangentni modul v plastičnem, MPa (np.nan za nelinearno)
-H0 = Et/(1-Et/E) # linearno utrjevanje
+H=H0 = Et/(1-Et/E) # linearno utrjevanje
+#TODO modul utrjevanja H !!!
 
-# gemeotrija nosilca
-L = 1000 # mm
+# obremenitve
 RP = [2,0] # vpetje (0-prosto, 1-fiksno, 2-konzolno) [levo, desno]
 RP_F = [0,0,1] # točkovna sila F0 (0-neobremenjeno, 1-obremenjeno) [levo, sredina, desno]
 RP_M = [0,0,0] # upogibni moment M0 (0-neobremenjeno, 1-obremenjeno) [levo, sredina, desno]
-F0 = 10000 # točkovna sila - navzdol, N
+F0 = 100000 # točkovna sila - navzdol, N
 M0 = 500*1e3 # upogibni moment - smer ure, N mm
 q0 = 0 # linijska obremenitev, N/mm
 
-# geometrijske lastnosti prereza
-# # 1. pravokotnik: a-širina, h-višina
+# geometrijske lastnosti
+L = 1000 # dolžina nosilca, mm
+# 1. pravokotnik: a-širina, h-višina
 a, h = 100, 100 #mm
 κ = 10*(1+ν)/(12+11*ν) #5/6 #koef. oblike prereza
 A = a*h #mm^2
@@ -94,9 +94,22 @@ I = 1/12 * a*h**3 #mm^4
 # A = np.pi*r**2 #mm^2
 # I = 1/64 * np.pi*r**4 #mm^4
 
-hx = L/(N-1)
+hx = L/(N-1) # dolžina KE
 As = κ*A # vpliv oblike prereza na velikost max strižnih nap., upoštevajoč konst. porazd. stižnih nap.
 M_pl = R_p * a * h**2/4 # notranji moment pri meji plastičnosti
+
+def remove_neg(a,b):
+    # if a[0] <= 0:
+    #     a = a[1:]
+    #     b = b[1:]
+    #     return remove_neg(a,b)
+    # else: return a,b
+    for i in range(len(a)): #remove ALL negative values
+        if a[i] <= 0:
+            a = np.delete(a, i)
+            b = np.delete(b, i)
+            return remove_neg(a,b)
+    return a,b
 
 # plastičnost - krivulja
 εn = np.linspace(0,1,1000)
@@ -108,35 +121,22 @@ for i in range(len(εn)):
     else: σn.append(R_p + Et*(εn[i]-R_p/E)) #konstanten tangentni modul
 σn = np.asarray(σn)
 
-# podatki iz LNMS
-# TODO ROČNO pravi modul elastičnosti E in meja plastičnosti R_p!
-εn = np.load('./Modelska_II/zaklj_nal/epsilon.npy')
-σn = np.load('./Modelska_II/zaklj_nal/sigma.npy')
+# # podatki iz LNMS
+# # ROČNO pravi modul elastičnosti E in meja plastičnosti R_p!
+# εn = np.load('./Modelska_II/zaklj_nal/epsilon.npy')
+# σn = np.load('./Modelska_II/zaklj_nal/sigma.npy')
 
 σt = σn*(1+εn) #Cauchy, prava napetost/true stress
 ε_log = np.log(1+εn) #logaritemska deformacija
 ε_pl = ε_log - σt/E #plastična deformacija
-def remove_neg(a,b):
-    # if a[0] <= 0:
-    #     a = a[1:]
-    #     b = b[1:]
-    #     return remove_neg(a,b)
-    # else:
-    #     return a,b
-    for i in range(len(a)): #remove ALL negative values
-        if a[i] <= 0:
-            a = np.delete(a, i)
-            b = np.delete(b, i)
-            return remove_neg(a,b)
-    return a,b
 ε_pl, σt = remove_neg(ε_pl, σt)
     
-plt.plot(εn, σn, 'k-', label='$\sigma_{ing}$')
-plt.plot(ε_pl, σt, 'b-', label='$\sigma_{true}$')
-plt.legend()
-plt.xlabel('$\\varepsilon$ [/]')
-plt.ylabel('$\\sigma$ [MPa]')
-plt.show()
+# plt.plot(εn, σn, 'k-', label='$\sigma_{ing}$')
+# plt.plot(ε_pl, σt, 'b-', label='$\sigma_{true}$')
+# plt.legend()
+# plt.xlabel('$\\varepsilon$ [/]')
+# plt.ylabel('$\\sigma$ [MPa]')
+# plt.show()
 
 # reševanje sistema enačb za pomike
 #############################################################################
@@ -145,7 +145,7 @@ plt.show()
 vozlisca = np.transpose([np.linspace(0,L,N), np.zeros(N)])
 ind = np.linspace(0,N-1,N, dtype=int)
 elementi = np.transpose([ind[:-1], ind[1:]]).astype(int)
-N_e = len(elementi) #=N-1
+Ne = len(elementi) #=N-1 št. KE
 
 # sestav globalne masne in togostne matrike
 Nps = 2
@@ -153,9 +153,9 @@ M_glob = np.zeros((N*Nps,N*Nps))
 K_glob = np.zeros((N*Nps,N*Nps))
 F_glob = np.zeros(N*Nps) # desna stran - vozliščne obremenitve
 
-def d(a,b): return ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
+def distance(a,b): return ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
 for element in elementi:
-    Le = d(vozlisca[element[0]], vozlisca[element[1]]) # dolžina elementa (Le = hx)
+    Le = distance(vozlisca[element[0]], vozlisca[element[1]]) # dolžina elementa (Le = hx)
     # priševanje prispevkov posameznih elementov
     ind = np.array([[Nps*element[0],Nps*element[0]+1,Nps*element[1],Nps*element[1]+1]])
     if KE == 'EB': K_glob[ind.T,ind] += K_e_eb(E, I, Le)
@@ -210,30 +210,192 @@ U, Θ = u.reshape(vozlisca.shape).T
 print(f'časi reševanja: sparse {(t3-t2):.3g} s')
 print(f'maksimalni poves: {np.max(np.abs(U)):.5g} mm')
 
-# izris - elastično!
-# nedeformirano stanje
-[plt.plot(vozlisca[[i,j],0], vozlisca[[i,j],1],'-', c='gray') for i,j in elementi]
-plt.plot(vozlisca[:,0], vozlisca[:,1],'o', c='gray')
-# deformirano stanje
-[plt.plot(vozlisca[[i,j],0], U[[i,j]],'-', c='k') for i,j in elementi]
-plt.plot(vozlisca[:,0], U,'o', c='k')
-plt.axis('equal')
-plt.xlabel('$x$ [mm]')
-plt.ylabel('$y$ [mm]')
-plt.minorticks_on()
-plt.tight_layout()
-plt.show()
+# # izris - elastično!
+# # nedeformirano stanje
+# [plt.plot(vozlisca[[i,j],0], vozlisca[[i,j],1],'-', c='gray') for i,j in elementi]
+# plt.plot(vozlisca[:,0], vozlisca[:,1],'o', c='gray')
+# # deformirano stanje
+# [plt.plot(vozlisca[[i,j],0], U[[i,j]],'-', c='k') for i,j in elementi]
+# plt.plot(vozlisca[:,0], U,'o', c='k')
+# plt.axis('equal')
+# plt.xlabel('$x$ [mm]')
+# plt.ylabel('$y$ [mm]')
+# plt.minorticks_on()
+# plt.tight_layout()
+# plt.show()
 
-# post process
+
+# plastičnost
 ###########################################################################################
 
 def epsilon_x(z):
     ε_xx = z/hx* (Θ[1:] - Θ[:-1])
-    return ε_xx
+    return np.transpose([ε_xx])
 def epsilon_xz(x):
     x = np.transpose([x])
     ε_xz = 1/hx* (U[1:] - U[:-1] - hx*Θ[:-1] - x*(Θ[1:]-Θ[:-1])) # epsilon_xz = du/dx - phi
     return ε_xz
+def σ_y(ε_P):
+    if Et is not np.nan:
+        return R_p + H0*ε_P #linearno utrjevanje
+    idx = np.argmin(np.abs(ε_pl - ε_P))
+    σ_y = σt[idx]
+    if σ_y < R_p:
+        return R_p #elastično
+    else:
+        return σ_y
+def hardening(ε_P):
+    if Et is not np.nan:
+        return H0 #linearno utrjevanje
+    idx = np.argmin(np.abs(ε_pl - ε_P))
+    σ_y = σt[idx]
+    if σ_y < R_p:
+        return E #elastično
+    else:
+        H = (σt[idx+1]- σt[idx-1]) / (ε_pl[idx+1] - ε_pl[idx-1])
+        return H
+def internal_f(σ, Θ):
+    # notranje veličine
+    M_y = -E*I/hx * (Θ[1:] - Θ[:-1]) #konst po KE
+    if KE != 'EB': T_z = As*σ[1,:,0] #lin potek KE Timošenko
+    else: T_z = np.zeros_like(M_y) #ni striga Euler-Bernoulli
+
+    # globalni vektor notranjih vozliščnih sil
+    f_int = np.zeros_like(F_glob)
+    for i in range(N-1):
+        element = elementi[i]
+        ind = np.array([Nps*element[0],Nps*element[0]+1,Nps*element[1],Nps*element[1]+1])
+        f_int[ind] += np.array([-T_z[i], -M_y[i], T_z[i], M_y[i]]) #strig na sredini KE
+    r = F_glob - f_int #residual
+
+    # izločimo reakcije v podporah TODO je to tukaj?
+    if RP[0] == 1 or RP[0] == 2: #prvo vozlisce je fiksno
+        F_Az = f_int[0]
+        r[0] = 0
+    if RP[0] == 2: #prvo vozlisce konzola
+        M_Ay = f_int[1]
+        r[1] = 0
+    if RP[1] == 1 or RP[1] == 2: #zadnje vozlisce je fiksno
+        F_Bz = f_int[-2]
+        r[-2] = 0
+    if RP[1] == 2: #zadnje vozlisce konzola
+        M_By = f_int[-1]
+        r[-1] = 0
+    return f_int, r
+def mises(sigma):
+    if KE == 'EB': return np.abs(sigma[0])
+    else: return np.sqrt(sigma[0]**2 + sigma[1]**2)
+def local(ε_new, ε_old, εe_old, εe_new, εp_eq, σ):
+    """lokalna zanka za von mises kriterij tečenja z linearnim izotropnim utrjevanjem"""
+    # elastična napoved
+    Δε = ε_new - ε_old #prirastek celotne deformacije je elastične (predpostavka)
+    εp_eq_trial = εp_eq
+    εe_trial = εe_old + Δε
+    if KE == 'EB': σ_trial = E_mat*εe_trial #enoosno -> skalarno
+    else: σ_trial = E_mat@εe_trial # Hooke
+    σp_trial = mises(σ_trial) #mises primerjalna napetost
+    Φ_trial = σp_trial - σ_y(εp_eq_trial)
+
+    Φ = np.zeros_like(Φ_trial)
+    Δγ = np.zeros_like(Φ_trial)
+    conv=[]
+    for i in range(Ne): #zanka po KE
+        for j in range(Nh): #zanka po višini
+            if Φ_trial[i,j] < 0: # elastično
+                σ[:,i,j] = σ_trial[:,i,j]
+                εe_new[:,i,j] = εe_trial[:,i,j]
+                # εp = ε_old - εe_old #enako kot prejšnji korak
+                εp_eq[i,j] = εp_eq_trial[i,j]
+            else: # plastično
+                l=0
+                Φ[i,j] = Φ_trial[i,j]
+                while abs(Φ[i,j]) > tol and l < Nmax:
+                    # H = hardening(ε_P_i) #TODO nelin naklon!
+                    Δγ[i,j] += Φ[i,j]/(3*G+H) #konstanten H za začetek
+                    Φ[i,j] = σp_trial[i,j] - 3*G*Δγ[i,j] - σ_y(εp_eq_trial[i,j] + Δγ[i,j])
+                    l += 1
+                    conv.append(Φ[i,j])
+                p = σ_trial[0,i,j] #hidrostatični del napetostnega tenzorja
+                σd_trial = σ_trial[:,i,j] - p #TODO Euler Bernoulli? ni deviatorja!
+                σd = (1 - Δγ[i,j]*3*G/σp_trial[i,j]) * σd_trial #deviatorični del napetostnega tenzorja
+                εe_new[:,i,j] = 1/2/G * σd + 1/3*εe_trial[0,i,j] #elastični del deformacijskega tenzorja
+                εp_eq[i,j] += Δγ[i,j]
+                σ[:,i,j] = σd + p #napetostni tenzor
+    return εe_new, εp_eq, σ, conv
+
+# krivulja obremenjevanja
+λ0 = 1e-6
+N_incr = 10
+λ = np.linspace(λ0,1,N_incr)
+
+# točka izračuna (največjih) deformacij TODO več točk po višini prereza!!!
+z = h/2 #največji odmik, kvadrat
+# z = r #največji odmik, krog
+
+# tenzor elastičnih konsatnt
+if KE == 'EB': E_mat = np.array([E]) #enoosni Hooke
+else: E_mat = np.array([[E,0],[0,G]]) #dodan strig, Hooke
+# E_mat = np.array([[E,0],[0,G]]) #dodan strig, Hooke TODO v tenzor 4 reda ali Voigt??
+
+# inicializacija
+U = np.zeros(N) #začetni približek - lahko bolje!?
+Θ = np.zeros(N)
+f_int = np.zeros_like(F_glob) #uskladiti z neničelnim začetnim približkom - Hooke? TODO
+# ε_new = np.zeros((3,3,Ne,Nh)) # TODO vse tenzorsko
+if KE == 'EB': ε_new = np.zeros((1,Ne,Nh)) #dim {ε_xx}, EB ni striga
+else: ε_new = np.zeros((2,Ne,Nh)) #dim {ε_xx, γ_xz}
+εe_new = np.zeros_like(ε_new)
+εp_eq = np.zeros((Ne,Nh)) #na začetku ni plastične deformacije
+σ = np.zeros_like(ε_new) #napetostni tenzor
+
+F_glob_norm = np.linalg.norm(F_glob)
+conv_gl = []
+conv_lok = []
+
+for n in range(len(λ)): #koračno obremenjevanje
+    print('loading state',n+1,'/',len(λ))
+    f_ext = λ[n]*F_glob
+    r = f_ext - f_int
+    r_norm = np.linalg.norm(r) +F_glob_norm #da iteriramo!
+    k=0
+    while r_norm/F_glob_norm > tol and k < Nmax: #GLOBALNA ZANKA
+        print('k=',k+1)
+        # TODO posodobitev togosti K_glob!!!
+
+        # Newton Raphson popravki
+        δU, δΘ = spsolve(K_glob, r).reshape(vozlisca.shape).T
+        U += δU
+        Θ += δΘ
+        
+        # posodobitev deformacij
+        ε_old = np.copy(ε_new)
+        εe_old = np.copy(εe_new)
+        ε_xx = epsilon_x(z) #TODO več točk po višini prereza
+        if KE == 'EB': ε_new =  np.array([ε_xx])
+        else:
+            γ_xz = epsilon_xz([hx/2]) # sredina KE
+            ε_new = np.array([ε_xx, γ_xz])
+
+        εe_new, εp_eq, σ, conv = local(ε_new, ε_old, εe_old, εe_new,εp_eq, σ) # LOKALNA ZANKA
+
+        f_int, r = internal_f(σ, Θ)
+        r_norm=np.linalg.norm(r)
+        conv_gl.append(abs(r_norm))
+        conv_lok.extend(np.abs(conv))
+        k += 1
+
+conv_lok=np.array(conv_lok)
+conv_gl=np.array(conv_gl)//np.linalg.norm(F_glob)
+print(conv_gl.shape, conv_lok.shape)
+
+# plt.plot(conv_gl, 'k.-', label='global')
+plt.plot(conv_lok, 'b.-', label='lokal')
+plt.yscale('log')
+plt.xlabel('iteracija')
+plt.ylabel('residual [/]')
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 ############## 1. deformacije
 z = h/2 #največji odmik, kvadrat
@@ -270,38 +432,11 @@ plt.show()
 σ_m0 = np.abs(σ_xx) #von Mises Euler-Bernoulli
 if KE != 'EB': #Timošenko
     σ_xz = G*γ_xz
-    σ_m0 = np.sqrt(σ_xx,2**2 + 3*σ_xz**2) #von Mises
+    σ_m0 = np.sqrt(σ_xx**2 + 3*σ_xz**2) #von Mises
 σ_E = np.transpose([σ_xx, σ_xz])
 
-def σ_y(ε_P):
-    if Et is not np.nan:
-        return R_p + H0*ε_P #linearno utrjevanje
-    idx = np.argmin(np.abs(ε_pl - ε_P))
-    σ_y = σt[idx]
-    if σ_y < R_p:
-        return R_p #elastično
-    else:
-        return σ_y
-def hardening(ε_P):
-    if Et is not np.nan:
-        return H0 #linearno utrjevanje
-    idx = np.argmin(np.abs(ε_pl - ε_P))
-    σ_y = σt[idx]
-    if σ_y < R_p:
-        return E #elastično
-    else:
-        H = (σt[idx+1]- σt[idx-1]) / (ε_pl[idx+1] - ε_pl[idx-1])
-        return H
-
-λ = np.linspace(1e-6,1,10) #loading step TODO
 # popravek pomikov vsak inkrement, glede na residual sile na desni strani r=f_int-f_ext
-
-# inicializacija
-f_int = np.zeros_like(F_glob)
-U = np.zeros(N)
-Θ = np.zeros(N)
-r = λ[0]*F_glob-f_int
-conv = []
+conv=[]
 
 for n in range(len(λ)):
     print('loading state',n+1,'/',len(λ))
@@ -477,16 +612,16 @@ for i in range(N):
 σ_m = np.sqrt(σ[:,0,0]**2 + 3*σ[:,0,2]**2) #von Mises
 
 f_int = np.zeros(N*Nps)
-for i in range(N_e):
+for i in range(Ne):
     element = elementi[i]
     ind = np.array([Nps*element[0],Nps*element[0]+1,Nps*element[1],Nps*element[1]+1])
-    if i > 0 and i < N_e-1: #2. reda natančnosti
+    if i > 0 and i < Ne-1: #2. reda natančnosti
         f1 = A*G/2 * (Θ[i]+Θ[i+1] + (U[i+2]-U[i] + U[i+1]-U[i-1])/2/hx)
         f2 = a*h**2*E/8/hx * (Θ[i+1]-Θ[i-1] + Θ[i+2]-Θ[i]) #TODO mora biti tukaj E*I ?!
     elif i==0:
         f1 = A*G/2 * (Θ[i]+Θ[i+1] + (U[i+2]-U[i])/2/hx + (-0.5*U[i+2]+2*U[i+1]-3/2*U[i])/hx)
         f2 = a*h**2*E/4/hx * (-0.5*Θ[i+2]+2*Θ[i+1]-3/2*Θ[i] + (Θ[i+2]-Θ[i])/2)
-    elif i==N_e-1:
+    elif i==Ne-1:
         f1 = A*G/2 * (Θ[i]+Θ[i+1] + (3/2*U[i+1]-2*U[i]+0.5*U[i-1])/hx + (U[i+1]-U[i-1])/2/hx)
         f2 = a*h**2*E/4/hx * ((Θ[i+1]-Θ[i-1])/2 + 3/2*Θ[i+1]-2*Θ[i]+0.5*Θ[i-1])
     f_int[ind] += np.array([-f1,f2,f1,-f2])

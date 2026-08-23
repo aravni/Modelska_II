@@ -10,10 +10,9 @@ from scipy import linalg
 from scipy.sparse.linalg import spsolve
 from timeit import default_timer as timer
 import matplotlib
-from alignYaxes import alignYaxes
+from alignAxes import *
 
-matplotlib.use('TkAgg') # Qt čudne težave z Wayland
-plt.style.use('aljaz') # TODO posodobi aljaz.mplstyle !!!
+plt.style.use('aljaz')
 
 def K_e_eb(E, I, Le):
     """togostna matrika za KE Euler-Bernoulli nosilec"""

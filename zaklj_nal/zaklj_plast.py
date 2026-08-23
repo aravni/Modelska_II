@@ -3,15 +3,15 @@
 # Zaključna naloga: upogib nosilca, statika
 # Euler-Bernoulli in Timošenkov nosilec, PLASTIČNOST
 # viri:
-# [1] E. A. de Souza Neto, D. Peric, D. R. J. Owen - Computational Methods for Plasticity_ Theory and Applications - Wiley (2008)
-# [2] https://vulcanhammer.net/wp-content/uploads/2017/01/finite-elements-in-plasticity-theory-and-practice.pdf
+# [1] E. A. de Souza Neto, D. Peric, D. R. J. Owen - Computational Methods for Plasticity: Theory and Applications - Wiley (2008)
+# [2] D. R. J. Owen - Finite Elements in Plasticity: Theory and Practice - Pineridge Press Limited (1980) https://vulcanhammer.net/wp-content/uploads/2017/01/finite-elements-in-plasticity-theory-and-practice.pdf
 
 import numpy as np 
 import matplotlib.pyplot as plt
 from scipy import linalg
 from scipy.sparse.linalg import spsolve
 from timeit import default_timer as timer
-from alignYaxes import alignYaxes
+from alignAxes import *
 
 plt.style.use('aljaz')
 
@@ -224,14 +224,15 @@ print(f'maksimalni poves: {np.max(np.abs(U)):.5g} mm')
 # plt.tight_layout()
 # plt.show()
 
-
 # plastičnost
 ###########################################################################################
 
 def epsilon_x(z):
+    '''z - višina v prerezu nosilca glede na nevtralno os'''
     ε_xx = z/hx* (Θ[1:] - Θ[:-1])
     return np.transpose([ε_xx])
 def epsilon_xz(x):
+    '''x - položaj po dolžini nosilca'''
     x = np.transpose([x])
     ε_xz = 1/hx* (U[1:] - U[:-1] - hx*Θ[:-1] - x*(Θ[1:]-Θ[:-1])) # epsilon_xz = du/dx - phi
     return ε_xz
@@ -376,7 +377,7 @@ for n in range(len(λ)): #koračno obremenjevanje
             γ_xz = epsilon_xz([hx/2]) # sredina KE
             ε_new = np.array([ε_xx, γ_xz])
 
-        εe_new, εp_eq, σ, conv = local(ε_new, ε_old, εe_old, εe_new,εp_eq, σ) # LOKALNA ZANKA
+        εe_new, εp_eq, σ, conv = local(ε_new, ε_old, εe_old, εe_new, εp_eq, σ) # LOKALNA ZANKA
 
         f_int, r = internal_f(σ, Θ)
         r_norm=np.linalg.norm(r)

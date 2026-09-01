@@ -54,8 +54,9 @@ def K_e_tm(E, I, Le):
                                       [6*Le, (2-C)*Le**2,-6*Le, (4+C)*Le**2]])
     return K_lok
 
-N = 100 # št. vozlišč
-KE = 'TG1' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
+N = 1000 # št. vozlišč
+KE = 'EB' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
+# KE = 'EB' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
 
 # snovne lastnosti
 R_p = 1 # meja plastičnosti, MPa
@@ -166,16 +167,23 @@ t4=timer()
 U, Φ = u.reshape(vozlisca.shape).T
 print(f'norme rešitev: scipy {np.linalg.norm(u1):.8g}, sparse {np.linalg.norm(u2):.8g}, numpy {np.linalg.norm(u):.8g}')
 print(f'časi reševanja: scipy {(t2-t1):.3g} s, sparse {(t3-t2):.3g} s, numpy {(t4-t3):.3g} s')
-print(f'maksimalni poves: {np.max(np.abs(U)):.5g} mm')
+print(f'maksimalni poves: {np.max(np.abs(U)):.8g} mm')
 
 # analitična rešitev
-x=np.linspace(0,L)
-u_max_ex = F0*L**3/3/E/I #EB
-# u_ex = -F0*x**2/6/E/I*(3*L-x) #Euler-Bernoulli
-# φ_ex = -F0/E/I*(L*x-x**2/2) #=du/dx EB?
-u_ex = -F0/As/G*x - F0/E/I*(-x**3/6+x**2*L/2) #Timošenko
-φ_ex = -F0/E/I*(L*x-x**2/2) - F0/As/G #=du/dx?
-print(f'analitično max poves: Euler-Bernoulli {u_max_ex:.5g} mm, Timošenko {np.max(np.abs(u_ex)):.5g} mm')
+x=np.linspace(0,L,N)
+if KE == 'EB':
+    u_max_ex = -F0*L**3/3/E/I #EB
+    u_ex = -F0*x**2/6/E/I*(3*L-x) #Euler-Bernoulli
+    φ_ex = -F0/E/I*(L*x-x**2/2) #=du/dx EB?
+else:
+    u_ex = -F0/As/G*x - F0/E/I*(-x**3/6+x**2*L/2) #Timošenko
+    u_max= -F0*L**3/3/E/I -F0/As/G
+    φ_ex = -F0/E/I*(L*x-x**2/2) - F0/As/G #=du/dx?
+print(f'analitično max poves: Euler-Bernoulli {F0*L**3/3/E/I:.5g} mm, Timošenko {F0/As/G*L + F0/E/I*(-L**3/6+L**2*L/2):.5g} mm')
+print(f'error u    : {np.linalg.norm(u_ex-U)/np.linalg.norm(u_ex):.3g}, {np.linalg.norm(u_ex-U):.3g}')
+print(f'error phi  : {np.linalg.norm(φ_ex-Φ)/np.linalg.norm(φ_ex):.3g}, {np.linalg.norm(φ_ex-Φ):.3g}')
+print(f'error u_max: {abs(np.max(np.abs(u_ex))-np.max(np.abs(U))):.3g}, {abs(np.max(np.abs(φ_ex))-np.max(np.abs(Φ))):.3g}')
+input("Press Enter to continue...")
 
 # izris
 # nedeformirano stanje
@@ -206,7 +214,7 @@ plt.show()
 
 # post process
 ###########################################################################################
-
+#TODO nekaj ni OK!! - premajhne vrednosti za EB
 def epsilon_x_mkr(z):
     if KE == 'EB': #Euler-Bernoulli
         ε_xx = np.empty(N) #deformacija je drugi odvod pomikov, 2. red natančnosti

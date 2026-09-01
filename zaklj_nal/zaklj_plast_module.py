@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Zaključna naloga: upogib nosilca, statika
-# Euler-Bernoulli nosilec, PLASTIČNOST
+# Euler-Bernoulli in Timošenko nosilec - ELASTIČNOST
+# PLASTIČNOST ne deluje!
 # viri:
 # [1] E. A. de Souza Neto, D. Peric, D. R. J. Owen - Computational Methods for Plasticity-Theory and Applications - Wiley (2008)
-# [2] https://vulcanhammer.net/wp-content/uploads/2017/01/finite-elements-in-plasticity-theory-and-practice.pdf
+# [2] D. R. J. Owen, E. Hinton - Finite elements in plasticity: Theory and practice - Pineridge Press (1980)
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +19,10 @@ import findiff
 plt.style.use('aljaz')
 
 class solver:
-    def __init__(self, Ne, Nh, N_iter, tol):
+    def __init__(self, Ne, Nh, N_iter, tol, presek='pravokotnik'):
+        if N_iter is None: N_iter, self.elastic = 1, True
+        else: self.elastic = False
+
         self.Ne=Ne #št elementov
         self.Nv=Ne+1 #št vozlišč
         self.Nh=Nh #št točk po višini prereza
@@ -30,7 +34,7 @@ class solver:
         self.KE = 'EB' #izbira KE (EB=nosilec Euler-Bernoulli, TG1,TG2,TM-oblike za Timošenko)
 
         # snovne lastnosti
-        self.E, self.R_p, self.H0 = 1, 1, 0.5 #test
+        self.E, self.R_p, self.H0 = 100, 1, 0.5 #test
         # self.R_p = 300 # meja plastičnosti, MPa
         # ρ = 1 # kg/mm^3
         # self.E = 189126 # MPa
@@ -44,28 +48,33 @@ class solver:
         self.RP = [2,0] # vpetje (0-prosto, 1-fiksno, 2-konzolno) [levo, desno]
         self.RP_F = [0,0,1] # točkovna sila F0 (0-neobremenjeno, 1-obremenjeno) [levo, sredina, desno]
         self.RP_M = [0,0,0] # upogibni moment M0 (0-neobremenjeno, 1-obremenjeno) [levo, sredina, desno]
-        self.F0 = 0.1 # točkovna sila - navzdol, N
-        self.M0 = 500*1e3 # upogibni moment - smer ure, N mm
+        self.F0 = 1 # točkovna sila - navzdol, N
+        self.M0 = 1 # upogibni moment - smer ure, N mm
         self.q0 = 0 # linijska obremenitev, N/mm
-    
+
+        #safety check
+        if self.RP_F[0] == 0 and self.RP_F[1] == 0 and self.RP_F[2] == 0: self.F0 = 0
+        if self.RP_M[0] == 0 and self.RP_M[1] == 0 and self.RP_M[2] == 0: self.M0 = 0
+        
         # geometrijske lastnosti
-        self.L = 2 # dolžina nosilca, mm
-        # 1. pravokotnik: a-širina, h-višina
-        self.a, self.h = 1, 1 #mm
-        κ = 10*(1+self.ν)/(12+11*self.ν) #5/6 #koef. oblike prereza
-        self.A = self.a*self.h #mm^2
-        self.I = 1/12 * self.a*self.h**3 #mm^4
-        # 2. krog: r-polmer
-        # r = 100 #mm
-        # κ = 6*(1+self.ν)/(7+6*self.ν) #9/10 #koef. oblike prereza
-        # A = np.pi*r**2 #mm^2
-        # I = 1/64 * np.pi*r**4 #mm^4
+        self.L = 100 # dolžina nosilca, mm
+        if presek == 'pravokotnik': # 1. pravokotnik: a-širina, h-višina
+            self.a, self.h = 10, 10 #mm
+            κ = 10*(1+self.ν)/(12+11*self.ν) #5/6 #koef. oblike prereza
+            self.A = self.a*self.h #mm^2
+            self.I = 1/12 * self.a*self.h**3 #mm^4
+        elif presek == 'krog': # 2. krog: r-polmer
+            r = 100 #mm
+            κ = 6*(1+self.ν)/(7+6*self.ν) #9/10 #koef. oblike prereza
+            self.A = np.pi*r**2 #mm^2
+            self.I = 1/64 * np.pi*r**4 #mm^4
+        else: raise Exception('Napačen tip prereza!')
     
         self.hx = self.L/(self.Nv-1) # dolžina KE
         self.hy = self.h/(self.Nh-1) # višina deljenja prereza
-        As = κ*self.A # vpliv oblike prereza na velikost max strižnih nap., upoštevajoč konst. porazd. stižnih nap.
-        M_pl = self.R_p * self.a * self.h**2/4 # notranji moment pri meji plastičnosti
-        A_layer = self.a * self.hy # površina sloja pri višini z
+        self.As = κ*self.A # vpliv oblike prereza na velikost max strižnih nap., upoštevajoč konst. porazd. stižnih nap.
+        # self.M_pl = self.R_p * self.a * self.h**2/4 # notranji moment pri meji plastičnosti
+        # self.A_layer = self.a * self.hy # površina sloja pri višini z
 
         # TODO preveri ali so dimenzije ok
         self.ε = np.zeros((Ne,Nh,3,3))
@@ -97,12 +106,19 @@ class solver:
             # self.y_list = np.linspace(-self.h/2., self.h/2., Nh) #višina prereza
             self.y_list = np.linspace(0, self.h/2., Nh) #višina prereza SYM
 
-    def upogibnica(self, n=None):
-        "analitična rešitev konzolno vpetega Euler Bernoulli nosilca"
-        if n is None: x = np.linspace(0,self.L,self.Nv) #vozlišča
-        else: x = np.linspace(0,self.L,n) #n točk
-        w = self.load_incr * self.F0*x**2/(6*self.E*self.I)*(3*self.L-x) #+ M0*x**2/(2*self.E*self.I)
-        return w
+    def analitično(self, x=None):
+        "analitična rešitev za upogib, zasuk, moment in prečno konzolno vpetega Euler Bernoulli in Timošenko nosilca v x=0, obremenjenega s točkovno silo in/ali momentom v x=L in/ali linijkno obremenitvijo q0"
+        if x is None: x, xm = self.vozlisca[:,0], self.integ_tocke[:,0]
+        else: xm=x
+        u_eb = self.load_incr * self.F0*x**2/(6*self.E*self.I)*(x-3*self.L) - self.M0*x**2/(2*self.E*self.I) - self.q0*x**2/(24*self.E*self.I)*(4*self.L**2-4*self.L*x+x**2)
+        phi_eb = -self.F0/self.E/self.I*(self.L*x-x**2/2) - self.M0*x/self.E/self.I - self.q0/(6*self.E*self.I)*(3*self.L**2*x - 2*self.L*x**2 + x**3/2) #=du/dx
+        if self.KE == 'EB': u,phi=u_eb,phi_eb
+        else: #timošenko
+            u = u_eb - self.load_incr*self.F0*x/self.As/self.G - self.q0/self.As/self.G*(self.L*x-x**2/2)
+            phi = phi_eb #- self.F0/self.As/self.G #?
+        M = self.F0*(self.L-xm) + self.M0 + self.q0/2*(self.L-xm)**2
+        T = self.F0 + self.q0*(self.L-xm)
+        return u, phi, M,T
 
     def shape_f(self,xi):
         "calculates shape functions and their derivatives for a 2-node beam element of length L at a given local coordinate position xi (-1 <= xi <= 1)"
@@ -126,7 +142,22 @@ class solver:
             -(3*xi+1)/L
         ]) #d²N/dx²
         return N, dNdx, B
-    
+
+    def zgostitev1(self, ratio):
+        """zgostitev vozlišč po dolžini nosilca, ratio>0: razmerje med prvim in zadnjim elementom"""
+        x=np.zeros(self.Nv)
+        r = ratio**(1/(self.Ne - 1)) #growth ration
+        h0 = self.L * (r - 1) / (r**self.Ne - 1) #prvi ke
+        for i in range(1,self.Nv):
+            x[i] = x[i-1] + h0 * r**(i-1)
+        return x
+
+    def zgostitev2(self):
+        """zgostitev vozlišč po dolžini nosilca, gostejše na robovih, kosinusna porazdelitev velikosti elementov"""
+        s = np.linspace(0, 1, self.Nv)
+        x = self.L * (1 - np.cos(np.pi * s)) / 2
+        return x
+
     # diskretizacija
     #############################################################################
 
@@ -139,7 +170,7 @@ class solver:
         return K_lok
     def K_e_tg2(self, Le):
         """togostna matrika za KE Timošenkov nosilec Gaussova integracija v 2 točkah
-        - pretoge rešitve po [https://vulcanhammer.net/wp-content/uploads/2017/01/finite-elements-in-plasticity-theory-and-practice.pdf]"""
+        - pretoge rešitve po [2]"""
         M1 = self.E*self.I/Le*np.array([[0, 0, 0, 0],
                             [0, 1, 0,-1],
                             [0, 0, 0, 0],
@@ -170,27 +201,27 @@ class solver:
                                         [6*Le, (2-C)*Le**2,-6*Le, (4+C)*Le**2]])
         return K_lok
 
-    def discretization(self):
+    def discretization(self, x = None):
         "diskretizacija, sestava matrik, RP"
+        if x is None: x = np.linspace(0,self.L,self.Nv) #vozlišča enakomerno razporejena
         # vozlišča in elementi
-        self.vozlisca = np.transpose([np.linspace(0,self.L,self.Nv), np.zeros(self.Nv)])
+        self.vozlisca = np.transpose([x, np.zeros(self.Nv)])
         ind = np.linspace(0,self.Nv-1,self.Nv, dtype=int)
         elementi = np.transpose([ind[:-1], ind[1:]]).astype(int)
     
         # sestav globalne masne in togostne matrike
-        M_glob = np.zeros((self.Nv*self.Nps,self.Nv*self.Nps))
         self.K_glob = np.zeros((self.Nv*self.Nps,self.Nv*self.Nps))
         self.F_glob = np.zeros(self.Nv*self.Nps) # desna stran - vozliščne obremenitve
     
         def distance(a,b): return ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
         for element in elementi:
-            Le = distance(self.vozlisca[element[0]], self.vozlisca[element[1]]) # dolžina elementa (Le = hx)
+            Le = distance(self.vozlisca[element[0]], self.vozlisca[element[1]]) # dolžina elementa (Le != hx)
             # priševanje prispevkov posameznih elementov
             ind = np.array([[self.Nps*element[0],self.Nps*element[0]+1,self.Nps*element[1],self.Nps*element[1]+1]])
-            if self.KE == 'EB': self.K_glob[ind.T,ind] += sol.K_e_eb(Le)
-            elif self.KE == 'TG1': self.K_glob[ind.T,ind] += sol.K_e_tg1(Le)
-            elif self.KE == 'TG2': self.K_glob[ind.T,ind] += sol.K_e_tg2(Le)
-            elif self.KE == 'TM': self.K_glob[ind.T,ind] += sol.K_e_tm(Le)
+            if self.KE == 'EB': self.K_glob[ind.T,ind] += self.K_e_eb(Le)
+            elif self.KE == 'TG1': self.K_glob[ind.T,ind] += self.K_e_tg1(Le)
+            elif self.KE == 'TG2': self.K_glob[ind.T,ind] += self.K_e_tg2(Le)
+            elif self.KE == 'TM': self.K_glob[ind.T,ind] += self.K_e_tm(Le)
             else: raise Exception('Napačen tip KE!')
             self.F_glob[ind[0,[0,2]]] += -self.q0*Le/2
     
@@ -232,14 +263,30 @@ class solver:
             self.F_glob[-1] += -self.M0
 
         # geometrija
-        self.integ_tocke = np.transpose([sol.vozlisca[:-1,0] + self.hx/2, sol.vozlisca[:-1,1]]) #sredina KE
+        # self.integ_tocke = np.transpose([sol.vozlisca[:-1,0] + self.hx/2, sol.vozlisca[:-1,1]]) #sredina KE enakomerno razporejena vozlišča
+        self.L_ke = np.diff(self.vozlisca[:,0]) #dolžina posameznega KE
+        self.integ_tocke = np.transpose([self.vozlisca[:-1,0] + self.L_ke/2, self.vozlisca[:-1,1]]) #sredina KE neenakomerno razporejena vozlišča
         
-        self.X_defor, self.Y_defor = np.empty((self.Nv,Nh)), np.empty((self.Nv,Nh))
-        # for i in range(Nh): X[:,i], Y[:,i] = sol.vozlisca[:,0], sol.vozlisca[:,1] + hy*i - h/2 #cel prerez
-        for i in range(Nh): self.X_defor[:,i], self.Y_defor[:,i] = sol.vozlisca[:,0], sol.vozlisca[:,1] + self.hy*i #sym
+        self.X_defor, self.Y_defor = np.empty((self.Nv,self.Nh)), np.empty((self.Nv,self.Nh))
+        # for i in range(self.Nh): X[:,i], Y[:,i] = sol.vozlisca[:,0], sol.vozlisca[:,1] + hy*i - h/2 #cel prerez
+        for i in range(self.Nh): self.X_defor[:,i], self.Y_defor[:,i] = self.vozlisca[:,0], self.vozlisca[:,1] + self.hy*i #sym
 
-    # iteracijski postopek
+    # rešitveni postopek
     #############################################################################
+
+    def elastic_solve(self):
+        self.elastic=True
+        # self.u = spsolve(self.K_glob, self.F_glob)
+        self.u = np.linalg.solve(self.K_glob, self.F_glob)
+        self.U, self.Θ = self.u.reshape(self.vozlisca.shape).T
+        ε = self.strain_EB()
+        self.ε = ε
+        sxx,sxy,sm = self.sigma(self.y_list)
+        self.σ[:,:,0,0] = sxx
+        self.σ[:,:,0,1] = sxy
+        self.σ[:,:,1,0] = sxy
+        self.q[:,:] = sm # mises
+        self.internal_f() #notranji moment, prečna sila
 
     def local1d(self, Δε):
         "samo sigma_xx - Euler-Bernoulli nosilec"
@@ -256,7 +303,7 @@ class solver:
         plast=0
         for i in range(self.Ne):
             for j in range(self.Nh): #višina prereza - integracija
-                if phi_trial[i,j] <= 0: #elastično
+                if phi_trial[i,j] <= 0 or self.elastic: #elastično
                     self.Φ[i,j] = phi_trial[i,j]
                     self.ε_e[i,j,0,0] = ε_e_trial[i,j]
                     self.q[i,j] = q_trial[i,j]
@@ -291,7 +338,7 @@ class solver:
         plast=0
         for i in range(self.Ne):
             for j in range(self.Nh): #višina prereza - integracija
-                if phi_trial[i,j] <= 0: #elastično
+                if phi_trial[i,j] <= 0 or self.elastic: #elastično
                     self.Φ[i,j] = phi_trial[i,j]
                     self.ε_e[i,j] = ε_e_trial[i,j]
                     self.p[i,j] = p_trial[i,j]
@@ -322,16 +369,16 @@ class solver:
         self.f_int[:] = 0.
         self.r[:] = self.f_int - self.f_ext #force residual
         fnorm = np.linalg.norm(self.f_ext)
-        print(fnorm)
 
         res=self.tol+1
         k=0
         while res > self.tol and k < self.N_iter:
-            Δu = spsolve(self.K_glob, self.r)
+            # Δu = spsolve(self.K_glob, self.r)
+            Δu = np.linalg.solve(self.K_glob, -self.r)
             self.u += Δu
             # self.u += Δu.reshape(self.vozlisca.shape + (Nps,))
-            Δu, theta = Δu.reshape(self.vozlisca.shape).T
-            Δε = self.strain_EB(Δu)
+            self.U, self.Θ = Δu.reshape(self.vozlisca.shape).T
+            Δε = self.strain_EB()
 
             # self.local_loop(Δε)
             self.local1d(Δε) # euler bernoulli
@@ -340,10 +387,14 @@ class solver:
             self.r[:] = self.f_int - self.f_ext
             res = np.linalg.norm(self.r)# / fnorm
             self.residuals[k] = res
-            err = np.linalg.norm(self.u.reshape(self.vozlisca.shape).T[0]-self.upogibnica()) / np.linalg.norm(self.upogibnica())
+            u_ex,_,_,_ = self.analitično()
+            err = np.linalg.norm(self.u.reshape(self.vozlisca.shape).T[0]-u_ex) / np.linalg.norm(u_ex)
             self.err_elastic[k] = err
             k+=1
             print(f'iteracija {k}, residual: {res:.3g}, {res/fnorm:.3g}, {err:.3g}')
+        self.U, self.Θ = self.u.reshape(self.vozlisca.shape).T
+        self.residuals = self.residuals[:k]
+        self.err_elastic = self.err_elastic[:k]
 
     def incr_load(self, N_incr, max_incr=1):
         for i in range(N_incr):
@@ -351,7 +402,8 @@ class solver:
             self.global_loop(load_incr=load_incr)
             print(f'end global loop, load increment: {load_incr:.3g}, {i+1} / {N_incr}')
             input('press enter to continue')
-    
+        self.U, self.Θ = self.u.reshape(self.vozlisca.shape).T
+
     def external_f(self):
         self.f_ext[:] = self.load_incr * self.F_glob #[F_glob.reshape((Ne+1,2)) for i in range(self.Nh)]
 
@@ -359,12 +411,12 @@ class solver:
         '''izračun notranjih sil iz napetosti za euler bernoulli nosilec'''
         # self.f_int[:] = -self.K_glob @ self.u #elastično - nepopravljeni pomiki!
 
-        self.f_int[:] = 0.
-        for i in range(self.Ne): #upogibni moment iz napetosti
-            self.M[i] = 2*np.trapz(self.σ[i,:,0,0] * self.y_list, self.y_list) #symmetry
+        # self.f_int[:] = 0.
+        # for i in range(self.Ne): #upogibni moment iz napetosti
+        #     self.M[i] = 2*np.trapz(self.σ[i,:,0,0] * self.y_list, self.y_list) #symmetry
 
-        k, n = linfit(self.integ_tocke[:,0], self.M)
-        self.T[:] = k
+        # k, n = linfit(self.integ_tocke[:,0], self.M)
+        # self.T[:] = k #cheating;)
         # D = findiff.FinDiff(0, hx, 1, acc=4)
         # self.T[:] = D(self.M)
         # self.T[:] = np.gradient(self.M, self.hx, edge_order=1) #prečna sila iz momenta
@@ -374,7 +426,8 @@ class solver:
         # self.T[-1] = (-self.M[-2] + self.M[-1]) / self.hx
         # self.T[0] = (-3*self.M[0] + 4*self.M[1] - self.M[2]) / (2*self.hx)
         # self.T[-1] = (self.M[-3] - 4*self.M[-2] + 3*self.M[-1]) / (2*self.hx)
-        
+
+        self.M, self.T = self.internal_vars()
         for i in range(self.Ne):
             self.f_int[2*i] += self.T[i]
             self.f_int[2*(i+1)] += self.T[i]
@@ -391,19 +444,122 @@ class solver:
         if self.RP[1] == 2: #zadnje vozlisce konzola
             self.f_int[-1] = self.u[-1]
 
-    def strain_EB(self, u):
-        '''izračun deformacij iz pomikov za euler bernoulli nosilec z metodo končnih razlik'''
-        ε = np.zeros_like(self.ε, dtype=float)
-        for i in range(1,self.Ne-1):
-            kappa = (u[i-1] - 2.*u[i] + u[i+1]) / self.hx**2 #ukrivljenost
-            ε[i,:,0,0] = -self.y_list * kappa
-        ε[0,:,0,0] = -self.y_list * (2.*u[0] - 5.*u[1] + 4.*u[2] - u[3]) / self.hx**2
-        ε[-1,:,0,0] = -self.y_list * (-u[-4] + 4.*u[-3] - 5.*u[-2] + 2.*u[-1]) / self.hx**2
-        return ε
+    # napetosti in deformacije
+    #############################################################################
+    # MKR ima težavo na prostem robu, ne deluje za nekonstantne dolžine KE!!!
 
-    def plot_tez_voz(self, val, label=None, n_mids=10, lw=5, markersize=100):
+    def analit_strig(self):
+        "za timošenko"
+        γ_xy = -self.load_incr*self.F0/self.As/self.G
+        σ_xy = -self.load_incr*self.F0/self.As
+        return γ_xy, σ_xy
+
+    def strain_EB(self):
+        '''izračun deformacij iz pomikov za euler bernoulli nosilec z metodo končnih elementov po celem prerezu'''
+        # ε = np.zeros_like(self.ε, dtype=float) #OK a MKE bolje!!!
+        # for i in range(1,self.Ne-1):
+        #     # kappa = (u[i-1] - 2.*u[i] + u[i+1]) / self.hx**2 #ukrivljenost
+        #     kappa = (u[i-1] - 2.*u[i] + u[i+1]) / self.L_ke[i]**2 #ukrivljenost
+        #     ε[i,:,0,0] = -self.y_list * kappa
+        # ε[0,:,0,0] = -self.y_list * (2.*u[0] - 5.*u[1] + 4.*u[2] - u[3]) / self.L_ke[0]**2
+        # ε[-1,:,0,0] = -self.y_list * (-u[-4] + 4.*u[-3] - 5.*u[-2] + 2.*u[-1]) / self.L_ke[-1]**2
+        e_xx, e_yy, e_xy = self.epsilon_MKE(self.y_list)
+        ε = np.zeros_like(self.ε)
+        ε[:,:,0,0] = e_xx
+        ε[:,:,1,1] = e_yy
+        ε[:,:,2,2] = e_yy
+        ε[:,:,0,1] = e_xy
+        ε[:,:,1,0] = e_xy
+        return ε
+    
+    def epsilon_MKR(self, y):
+        if self.KE == 'EB': #Euler-Bernoulli
+            ε_xx_MKR = -self.strain_EB(self.U)[:,-1,0,0] #največji strain
+        elif self.KE == 'TG1' or self.KE == 'TG2' or self.KE == 'TM': #Timošenko
+            ε_xx_MKR = np.empty(self.Ne)
+            ε_xx_MKR[0] = y * (-3/2*self.Θ[0] + 2*self.Θ[1] - 0.5*self.Θ[2]) / self.hx
+            ε_xx_MKR[-1] = y * (3/2*self.Θ[-1] - 2*self.Θ[-2] + 0.5*self.Θ[-3]) / self.hx
+            for i in range(1,self.Ne-1):
+                ε_xx_MKR[i] = y * (-self.Θ[i-1] + self.Θ[i+1]) / (2*self.hx)
+        ε_yy_MKR = -self.ν * ε_xx_MKR #= ε_zz
+
+        #strig
+        γ_xy_MKR = np.zeros(self.Ne)
+        if self.KE == 'TG1' or self.KE == 'TG2' or self.KE == 'TM': #Timošenko
+            γ_xy_MKR[0] = -self.Θ[0] + (-3/2*self.U[0] + 2*self.U[1] - 0.5*self.U[2]) / self.hx
+            γ_xy_MKR[-1] = -self.Θ[-1] + (3/2*self.U[-1] - 2*self.U[-2] + 0.5*self.U[-3]) / self.hx
+            for i in range(1,self.Ne-1):
+                γ_xy_MKR[i] = -self.Θ[i] + (-self.U[i-1] + self.U[i+1]) / (2*self.hx)
+        return (ε_xx_MKR, ε_yy_MKR, γ_xy_MKR)
+    
+    def epsilon_MKE(self, y, x=0.5):
+        """izračun deformacij za poljubno višino prereza **y** za Euler-Bernoulli ali Timošenko nosilec\\
+        x: poz. za izračun striga epsilon_xy v območju KE - [0,L_KE]. Default: sredina KE
+        """
+        if np.isscalar(y): y = [y]
+        ε_xx_MKE = np.array([yi/self.L_ke* (self.Θ[1:] - self.Θ[:-1]) for yi in y]).T #nekonst dolžina KE, po celi višini preseka
+        ε_yy_MKE = -self.ν * ε_xx_MKE #= ε_zz
+
+        # strig
+        x = x*self.L_ke #np.transpose([np.asarray(x)*self.L_ke])
+        if self.KE == 'EB': γ_xy_MKE = np.zeros(self.Ne) #Euler-Bernoulli
+        else: #Timošenko
+            γ_xy_MKE = 1/self.L_ke* (self.U[1:] - self.U[:-1] - self.L_ke*self.Θ[:-1] - x*(self.Θ[1:]-self.Θ[:-1])) # epsilon_xy = du/dx - phi
+        # if len(x) == 1: γ_xy_MKE = γ_xy_MKE.ravel()
+        γ_xy_MKE = np.array([γ_xy_MKE for yi in y]).T #enaka dim - konst po višini prereza
+        return (ε_xx_MKE, ε_yy_MKE, γ_xy_MKE)
+    
+    def sigma(self, y, method='MKE'):
+        '''izračun iz epsilon po MKE ali po MKR lin. elastično!'''
+        if method == 'MKE':(ε_xx, ε_yy, γ_xy) = self.epsilon_MKE(y)
+        elif method == 'MKR':(ε_xx, ε_yy, γ_xy) = self.epsilon_MKR(y)
+        else: raise Exception('Napačna metoda za izračun napetosti!')
+
+        σ_xx = self.E*ε_xx
+        if self.KE != 'EB': #Timošenko
+            σ_xy = self.G*γ_xy
+            σ_m = np.sqrt(σ_xx**2 + 3*σ_xy**2) #von Mises
+        else: 
+            σ_m = np.abs(σ_xx) #von Mises Euler-Bernoulli
+            σ_xy = np.zeros_like(σ_xx)
+        return (σ_xx, σ_xy, σ_m)
+
+    def M_bend(self, x=0.5):
+        '''upogibni moment euler bernoulli nosilec - lin potek po KE, Timošenko konst. po KE -> enako za x=1/2!\\
+        x: poz. za izračun momenta v območju KE - [0,L_KE]. Default: sredina KE'''
+        x = self.L_ke * x
+        U1 = self.U[:-1] * (-3*self.L_ke + 6*x)
+        theta1 = self.Θ[:-1] * (-2*self.L_ke**2 + 3*self.L_ke*x)
+        U2 = self.U[1:] * (3*self.L_ke - 6*x)
+        theta2 = self.Θ[1:] * (-self.L_ke**2 + 3*self.L_ke*x)
+        return -2*self.E*self.I/self.L_ke**3 * (U1+theta1+U2+theta2)
+    
+    def internal_vars(self):
+        '''notranje veličine prereza za Timošenko in Euler-Bernoulli nosilec: moment M, prečna/strižna sila T'''
+        # dΘ_dx = np.empty(self.Ne) #prvi odvod povesa MKR
+        # dΘ_dx[0] = (-3/2*self.Θ[0] + 2*self.Θ[1] - 0.5*self.Θ[2]) / self.hx
+        # dΘ_dx[-1] = (3/2*self.Θ[-1] - 2*self.Θ[-2] + 0.5*self.Θ[-3]) / self.hx
+        # for i in range(1,self.Ne-1):
+        #     dΘ_dx[i] = (-self.Θ[i-1] + self.Θ[i+1]) / (2*self.hx)
+        # # predpostavka sym prereza glede na nevtralno os
+        # M_y_MKR = -self.E*self.I* dΘ_dx #notranji upogibni moment
+        # if self.KE != 'EB': T_y_MKR = self.As*self.σ[:,0,0,1] #notranja strižna sila
+        # else: T_y_MKR = np.zeros_like(M_y_MKR)
+
+        # izpeljava iz KE [2]
+        M_y_MKE = self.M_bend(x=0.5)
+        # M_y_MKE = self.E*self.I/self.L_ke * (self.Θ[:-1] - self.Θ[1:]) #konst. po KE za Timo, EB na sredini KE
+        if self.KE != 'EB': T_y_MKE = -self.G*self.As * ((self.U[1:] - self.U[:-1])/self.L_ke - (self.Θ[:-1] + self.Θ[1:])/2) #na sredini KE - točnejši
+        else: T_y_MKE = -6*self.E*self.I/self.L_ke**3 * (2*(self.U[1:] - self.U[:-1]) - self.L_ke*(self.Θ[:-1] + self.Θ[1:])) #Euler-Bernoulli
+        return (M_y_MKE, T_y_MKE)
+
+    # plotting
+    #############################################################################
+
+    def plot_tez_voz(self, val, label=None, n_mids=10, lw=5, markersize=100, show=False, fig=None, ax=None):
         '''plottanje težiščnice in vozliščnih vrednosti'''
-        fig,ax = plt.subplots(figsize=(16,10))
+        if fig is None: fig = plt.figure(figsize=(16,10))
+        if ax is None: ax = fig.add_subplot(111)
         cmap = plt.get_cmap('turbo')
         norm = plt.Normalize(vmin=np.min(val), vmax=np.max(val))
 
@@ -413,16 +569,18 @@ class solver:
         fig.colorbar(ln, label=label)
         ax.set_xlabel('$x$ [mm]')
         ax.set_ylabel('$y$ [mm]')
-        plt.show()
+        if show: plt.show()
+        else: return fig, ax
 
-    def plot_tez_integ(self, val, label=None, n_mids=10, lw=5, markersize=100):
+    def plot_tez_integ(self, val, label=None, n_mids=10, lw=5, markersize=100, show=False, fig=None, ax=None):
         '''plottanje težiščnice in vrednosti v integracijskih točkah'''
         val_voz =  np.zeros(self.Nv) #integracijske vrednosti lin interpolirane na vozliščih
         for i in range(1,self.Ne): val_voz[i] = (val[i-1] + val[i])/2
         val_voz[0] = val[0] - (val[1]-val[0])/2
         val_voz[-1] = val[-1] + (val[-1]-val[-2])/2
 
-        fig,ax = plt.subplots(figsize=(16,10))
+        if fig is None: fig = plt.figure(figsize=(16,10))
+        if ax is None: ax = fig.add_subplot(111)        
         cmap = plt.get_cmap('turbo')
         norm = plt.Normalize(vmin=np.min(val_voz), vmax=np.max(val_voz))
 
@@ -433,11 +591,13 @@ class solver:
         fig.colorbar(ln, label=label)
         ax.set_xlabel('$x$ [mm]')
         ax.set_ylabel('$y$ [mm]')
-        plt.show()
+        if show: plt.show()
+        else: return fig, ax
 
-    def plot_cross_voz(self, val, label=None, levels=50):
+    def plot_cross_voz(self, val, label=None, levels=50, show=False, fig=None, ax=None):
         '''plottanje celega prereza z vozliščnimi vrednostmi'''
-        fig,ax = plt.subplots(figsize=(16,10))
+        if fig is None: fig = plt.figure(figsize=(16,10))
+        if ax is None: ax = fig.add_subplot(111)
         cmap = plt.get_cmap('turbo')
         norm = plt.Normalize(vmin=np.min(val), vmax=np.max(val))
 
@@ -445,16 +605,18 @@ class solver:
         plt.colorbar(cf, label=label)
         ax.set_xlabel('$x$ [mm]')
         ax.set_ylabel('$y$ [mm]')
-        plt.show()
+        if show: plt.show()
+        else: return fig, ax
 
-    def plot_cross_integ(self, val, label=None, levels=50):
+    def plot_cross_integ(self, val, label=None, levels=50, show=False, fig=None, ax=None):
         '''plottanje celega prereza z vrednostmi v integracijskih točkah, interpolirano na vozlišča'''
         val_voz =  np.empty((self.Nv,self.Nh)) #integracijske vrednosti lin interpolirane na vozliščih
         for i in range(1,self.Ne): val_voz[i,:] = (val[i-1,:] + val[i,:])/2
         val_voz[0,:] = val[0,:] - (val[1,:]-val[0,:])/2
         val_voz[-1,:] = val[-1,:] + (val[-1,:]-val[-2,:])/2
 
-        fig,ax = plt.subplots(figsize=(16,10))
+        if fig is None: fig = plt.figure(figsize=(16,10))
+        if ax is None: ax = fig.add_subplot(111)
         cmap = plt.get_cmap('turbo')
         norm = plt.Normalize(vmin=np.min(val_voz), vmax=np.max(val_voz))
 
@@ -462,7 +624,8 @@ class solver:
         plt.colorbar(cf, label=label)
         ax.set_xlabel('$x$ [mm]')
         ax.set_ylabel('$y$ [mm]')
-        plt.show()
+        if show: plt.show()
+        else: return fig, ax
 
 def remove_neg(a,b):
     # if a[0] <= 0:
@@ -484,14 +647,16 @@ def linfit(x, y):
 
 if __name__ == "__main__":
     # PODATKI
-    Nv = 31 # št. vozlišč
+    Nv = 100 # št. vozlišč
     Ne = Nv-1 #št el
     Nh = 10 # št. točk po višini prereza
 
     # parametri za Newton-Raphson-ovo metodo
-    tol = 1e-3
-    Nmax = 100
+    tol = 1e-1
+    Nmax = 10
 
+    load = 1e-1 # max obremenitev
+    
     # # plastičnost - krivulja
     # εn = np.linspace(0,2,1000)
     # σn=[] #inž. napetost, nominalna
@@ -520,73 +685,85 @@ if __name__ == "__main__":
     # plt.show()
 
     sol = solver(Ne, Nh, Nmax, tol)
-    sol.discretization()
+    sol.elast=False
 
-    # # reševanje sistema enačb
-    # t2=timer()
-    # u_elast = spsolve(K_glob, F_glob)
-    # t3=timer()
-    # U_elast, Θ_elast = u_elast.reshape(sol.vozlisca.shape).T
-    # print(f'časi reševanja: sparse {(t3-t2):.3g} s')
-    # print(f'maksimalni poves: {np.max(np.abs(U_elast)):.5g} mm')
+    x=np.linspace(0,sol.L,sol.Nv) #enakomerno razporejena vozlišča
+
+    # ratio=10 #razmerje med prvim in zadnjim elementom
+    # x=np.zeros(Nv)
+    # r = ratio**(1/(Ne - 1)) #growth ration
+    # h0 = sol.L * (r - 1) / (r**Ne - 1) #prvi ke
+    # for i in range(1,Nv):
+    #     x[i] = x[i-1] + h0 * r**(i-1)
+
+    #gostejše na obeh robovih
+    # s = np.linspace(0, 1, Nv)
+    # x = sol.L * (1 - np.cos(np.pi * s)) / 2
+
+    # plt.plot(x, np.zeros_like(x), 'kx-')
+    # plt.show()
+
+    sol.discretization(x)
 
     # plastično
+    # elastično - izračun le ene iteracije ;)
     #############################################################################
-
-    load = 1e-1
-    sol.N_iter = 100
-    sol.tol = 1e-1
 
     u_elast = spsolve(sol.K_glob, load*sol.F_glob)
     U_elast, Θ_elast = u_elast.reshape(sol.vozlisca.shape).T
 
-    sol.global_loop(load_incr=load)
-    # sol.incr_load(N_incr=10, max_incr=load)
+    # sol.global_loop(load_incr=load)
+    sol.incr_load(N_incr=10, max_incr=load)
 
-    U, sol.Θ = sol.u.reshape(sol.vozlisca.shape).T
-    sol.U = -U
+    sol.U, sol.Θ = sol.u.reshape(sol.vozlisca.shape).T
+    sol.U = -sol.U
     # sol.U,sol.Θ = U_elast, Θ_elast
     sol.u_integ = np.array([(sol.U[i] + sol.U[i+1])/2 for i in range(sol.Ne)]) #poves lin interpoliran na sredini KE
 
     U_all = np.repeat(sol.U,sol.Nh).reshape(sol.Nv,sol.Nh) #poves razširjen na cel prerez
-    sol.X_defor, sol.Y_defor = sol.X_defor, sol.Y_defor + U_all
-    
-    u_ex = -sol.upogibnica()
+    X_cor = np.transpose([-y*sol.Θ for y in sol.y_list]) #popravek zaradi EB predpostavke o planosti prereza
+    sol.X_defor, sol.Y_defor = sol.X_defor + X_cor, sol.Y_defor + U_all
+
+    u_ex,_,_,_ = sol.analitično()
     print('elastična teorija:')
     print(f'sigma_max = {load*sol.F0*sol.L*sol.h/2/sol.I:.3g}, izračun: {np.max(np.abs(sol.q)):.3g} MPa')
     print(f'u_max     = {load*sol.F0*sol.L**3/3/sol.E/sol.I:.3g}, izračun: {np.max(sol.u):.3g} mm')
     print(f'M_max     = {load*sol.F0*sol.L:.3g}, izračun: M_max = {np.max(sol.M):.3g} mm')
     print(f'T_max     = {load*sol.F0:.3g}, izračun: {np.max(sol.T):.3g} mm')
-    print(f'napaka    : {np.linalg.norm(u_ex-U)/np.linalg.norm(u_ex):.3g}, {np.linalg.norm(U-U_elast):.3g}')
-    # input('press enter to continue')
+    print(f'napaka    : {np.linalg.norm(u_ex-sol.U)/np.linalg.norm(u_ex):.3g}, {np.linalg.norm(sol.U-U_elast):.3g}')
 
-    plt.plot(sol.M, 'x-',label='$M$')
-    plt.plot(sol.T, 'x-', label='$T$')
+    # plottting
+    #############################################################################
+
+    plt.plot(sol.integ_tocke[:,0], sol.M, 'x-',label='$M$')
+    plt.plot(sol.integ_tocke[:,0], sol.T, 'x-', label='$T$')
     plt.legend()
     plt.show()
-    
-    iters = np.arange(sol.N_iter)+1
+
+    print(sol.residuals, sol.err_elastic)
+    iters = np.arange(len(sol.residuals))+1
     plt.loglog(iters,sol.residuals, 'kx-')
     plt.loglog(iters,sol.err_elastic, 'bx-')
     plt.show()
 
-    # plot_tez_integ(sol.M, label='$M$')
-    # plot_tez_integ(sol.T, label='$T$')
-    sol.plot_cross_voz(np.abs(U_all), label='$|U|$')
-    sol.plot_cross_integ(sol.Φ, label='$\Phi$')
-    sol.plot_cross_integ(sol.q, label='$\sigma_p$')
-    # sol.plot_cross_integ(sol.σ[:,:,0,0], label='$\sigma_{xx}$')
-    sol.plot_cross_integ(sol.ε_p_eq, label='$\\varepsilon_p^{eq}$')
+    sol.plot_tez_integ(sol.M, label='$M$', show=True) #colored line težava neg vred!!!
+    sol.plot_tez_integ(sol.T, label='$T$', show=True) #colored line težava neg vred!!!
 
-    sol.plot_cross_integ(sol.ε[:,:,0,0], label='$\\varepsilon_{xx}$')
+    sol.plot_cross_voz(np.abs(U_all), label='$|U|$', show=True)
+    # sol.plot_cross_integ(sol.Φ, label='$\Phi$', show=True)
+    # sol.plot_cross_integ(sol.q, label='$\sigma_p$', show=True) #von mises
+    sol.plot_cross_integ(sol.σ[:,:,0,0], label='$\sigma_{xx}$', show=True)
+    # sol.plot_cross_integ(sol.ε_p_eq, label='$\\varepsilon_p^{eq}$')
+    sol.plot_cross_integ(sol.ε[:,:,0,0], label='$\\varepsilon_{xx}$', show=True)
+    sol.plot_cross_integ(sol.ε[:,:,1,1], label='$\\varepsilon_{yy}$', show=True)
 
     tocka = 0 #0 nevtralana os ali -1 za prikaz ektremnih vrednosti na nosilcu - upoštevamo simetrijo
     # tocka = 0 #N//2 za nevtralana os ali 0 oz. -1 za prikaz ektremnih vrednosti na nosilcu - cel prerez
+    sol.plot_tez_voz(np.abs(sol.U), label='$|u|$', show=True)
+    # sol.plot_tez_integ(np.abs(u_integ), label='$|u_{integ}|$', show=True)
+    sol.plot_tez_integ(sol.q[:,tocka], label='$\sigma_m(N.O.)$', show=True)
 
-    sol.plot_tez_voz(np.abs(U), label='$|u|$')
-    # sol.plot_tez_integ(np.abs(u_integ), label='$|u_{integ}|$')
-    sol.plot_tez_integ(sol.q[:,tocka], label='$\sigma_m(N.O.)$')
-
-    tocka=-1
-    sol.plot_tez_integ(sol.q[:,tocka], label='$\sigma_m(y_{max})$')
-    sol.plot_tez_integ(sol.Φ[:,tocka], label='$\Phi$')
+    tocka=-1 #ekstremno
+    sol.plot_tez_integ(sol.q[:,tocka], label='$\sigma_m(y_{max})$', show=True)
+    sol.plot_tez_integ(sol.σ[:,tocka,0,0], label='$\sigma_{xx}(y_{max})$', show=True)
+    # sol.plot_tez_integ(sol.Φ[:,tocka], label='$\Phi$', show=True)

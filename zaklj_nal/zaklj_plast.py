@@ -431,6 +431,7 @@ plt.show()
 ############### 2. napetosti
 σ_xx = E*ε_xx #elastično !!!
 σ_m0 = np.abs(σ_xx) #von Mises Euler-Bernoulli
+σ_xz = np.zeros_like(σ_xx)
 if KE != 'EB': #Timošenko
     σ_xz = G*γ_xz
     σ_m0 = np.sqrt(σ_xx**2 + 3*σ_xz**2) #von Mises

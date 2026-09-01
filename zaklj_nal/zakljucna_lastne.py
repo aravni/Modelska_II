@@ -15,23 +15,23 @@ Nps = 2 #izbira KE (2-nosilec, 3-okvir)
 
 # snovne lastnosti
 ρ = 1 # kg/mm^3
-E = 1 # MPa
+E = 100 # MPa
 ν = 0.3 # Poisson
 
 # gemeotrija nosilca
-L = 1000 # mm
+L = 100 # mm
 alpha = np.deg2rad(0) # kot zasuka
 RP = [1,1] # vpetje (0-prosto, 1-fiksno)
 
 # geometrijske lastnosti prereza
 # 1. pravokotnik: a-širina, h-višina
-a, h = 1, 1 #mm
+a, h = 10, 10 #mm
 A = a*h #mm^2
 I = 1/12 * a*h**3 #mm^4
 # 2. krog: r-polmer
-r = 1 #mm
-A = np.pi*r**2 #mm^2
-I = 1/64 * np.pi*r**4 #mm^4
+# r = 1 #mm
+# A = np.pi*r**2 #mm^2
+# I = 1/64 * np.pi*r**4 #mm^4
 
 ###################################################################################
 
@@ -140,35 +140,47 @@ if Nps == 3: # izbrišemo zasuke - vsaka tretja PS (eig_vec_[::3,:])
 ########################################################################################
 
 # izris lastne oblike
+N_max = 7 # št. lastnih oblik za izris
 m = 0 # zaporedni indeks lastne oblike
 scale = 1 # prečno nihanje
 scale_x = 0.2 # vzdolžno nihanje
 
-def animate(i, smer):
+def animate(i, smer, line):
     if smer == 'x':
-        return ax.plot(amp[i]*modeshape[:,0], modeshape[:,1],'k-o')
+        # return ax.plot(amp[i]*modeshape[:,0], modeshape[:,1],'k-o')
+        line.set_data(amp[i]*modeshape[:,0], modeshape[:,1])
     else:
-        return ax.plot(modeshape[:,0], amp[i]*modeshape[:,1],'k-o')
+        # return ax.plot(modeshape[:,0], amp[i]*modeshape[:,1],'k-o')
+        line.set_data(modeshape[:,0], amp[i]*modeshape[:,1])
+    return line,
         
-for m in range(eig_freq.size):
+for m in range(N_max):
     modeshape = np.copy(vozlisca).ravel()
     modeshape += eig_vec_[:,m]
     modeshape = modeshape.reshape(N,2)
 
-    # # nedeformirano stanje
-    # [plt.plot(vozlisca[[i,j],0],vozlisca[[i,j],1],'-', c='gray') for i,j in elementi]
-    # plt.plot(vozlisca[:,0],vozlisca[:,1],'o', c='gray')
-    # # deformirano stanje
-    # [plt.plot(modeshape[[i,j],0], -modeshape[[i,j],1],'-', c='k') for i,j in elementi]
-    # plt.plot(modeshape[:,0], -modeshape[:,1],'o', c='k')
+    print(f'mode {m+1}, f = {eig_freq[m]:.5g} Hz')
+
+    # max amplituda
+    plt.clf()
+    # nedeformirano stanje
+    [plt.plot(vozlisca[[i,j],0],vozlisca[[i,j],1],'-', c='gray') for i,j in elementi]
+    plt.plot(vozlisca[:,0],vozlisca[:,1],'o', c='gray')
+    # deformirano stanje
+    [plt.plot(modeshape[[i,j],0], modeshape[[i,j],1],'-', c='k') for i,j in elementi]
+    plt.plot(modeshape[:,0], modeshape[:,1],'o', c='k')
+    [plt.plot(modeshape[[i,j],0], -modeshape[[i,j],1],'-', c='k') for i,j in elementi]
+    plt.plot(modeshape[:,0], -modeshape[:,1],'o', c='k')
     # plt.axis('equal')
-    # plt.xlabel('$x$ [mm]')
-    # plt.ylabel('$y$ [mm]')
-    # plt.minorticks_on()
-    # plt.tight_layout()
-    # plt.show()
+    plt.xlabel('$x$ [mm]')
+    plt.ylabel('$y$ [mm]')
+    plt.minorticks_on()
+    plt.tight_layout()
+    # plt.savefig(f'./slike/dinamika/prostoD_mode_{m+1}.pdf')
+    plt.show()
 
     # animacija
+    plt.clf()
     fig,ax = plt.subplots()
     [ax.plot(vozlisca[[i,j],0],vozlisca[[i,j],1],'-', c='gray') for i,j in elementi]
     ax.plot(vozlisca[:,0],vozlisca[:,1],'o', c='gray')
@@ -186,6 +198,8 @@ for m in range(eig_freq.size):
 
         amp = scale*np.linspace(-1,1,100)
         amp = np.block([amp,amp[::-1]])
+
+        line, = ax.plot(modeshape[:,0], amp[0]*modeshape[:,1],'k-o')
     else:
         smer, s = 'x', scale_x #ni nihanja v y smeri
         ax.set_xlim(0, max([np.max(modeshape[:,0]), np.max(vozlisca[:,0])])*(1+s)*1.1)
@@ -193,6 +207,11 @@ for m in range(eig_freq.size):
         amp = np.linspace(1-s,1+s,100)
         amp = np.block([amp,amp[::-1]])
 
+        line, = ax.plot(amp[0]*modeshape[:,0], modeshape[:,1],'k-o')
+
     ani = animation.FuncAnimation(
-        fig, animate, interval=5, blit=True, repeat=True, frames=len(amp), fargs=smer)
+        fig, animate, interval=5, blit=True, repeat=True, frames=len(amp), fargs=(smer, line))
+    # ani.save(f'./slike/dinamika/mode_{m+1}.gif')
+    # ani.save(f'./slike/dinamika/prosto_mode_{m+1}.mp4')
     plt.show()
+    plt.close(fig)

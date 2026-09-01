@@ -1,0 +1,377 @@
+\section{Metodologija}
+
+Obravnavamo problem upogiba konzolno vpetega nosilca, obremenjenega s točkovno silo na prostem robu. Pri tem predpostavimo:
+\begin{itemize}
+    \item konstantno debelino in širino nosilca,
+    \item konstantne snovne lastnosti,
+    \item majhne deformacije in 
+    \item planost in pravokotnost prereza glede na nevtralno os nosilca (Bernoullijeva predpostavka). Pri tem zanemarimo vpliv striga. Če upoštevamo konstantno porazdelitev striga po prerezu, dobimo Timošenkovo teorijo upogiba nosilca.
+\end{itemize}
+
+\fig{h}{0.5}{./zaklj_slike/cantilever}{Konzolno vpet nosilec}{fig:cantilever}
+
+V primeru statičnega ravnovesja dobimo robi problem v obliki diferencialne enačbe četrtega reda
+\begin{equation}
+    E\;I\;u''''(x) = q(x),
+\end{equation} 
+kjer so $E$ modul elastičnosti, $I$ drugi (vztrajnostni) moment prereza v y-smeri. Robni pogoji so: poves $u$ ali prečna sila $T=-E\,I\,u'''$ in zasuk $\varphi=-u'$ ali upogibni moment $M=E\,I\,u''$.
+
+Če pri izpeljavi upoštevamo še kinetično energijo, dobimo 
+\begin{equation}
+    E\;I\;u''''(x) + \mu\;\ddot{u} = q(x),
+\end{equation}
+kjer $\ddot{u}$ predstavlja drugi odvod povesa po času, torej pospešek in $\mu$ masa na enoto dolžine.
+
+Pri obravnavi s končnimi elementi (KE, ang. FE) pri metodi končnih elementov (MKE, ang. FEM), se vodilna enačba statičnega ravnovesja pretvori v diskretno obliko -- sistem linearnih algebrajskih enačb
+\begin{equation}
+    [\mathbf{K}]\;\mathbf{u} = \mathbf{f},
+\end{equation}
+kjer je $[\mathbf{K}]$ globalna togostna matrika, $\mathbf{u}$ vektor neznank in $\mathbf{f}$ vektor zunanjih sil. V primeru dinamičnega ravnovesja dobimo
+\begin{equation}
+    [\mathbf{M}]\;\ddot{\mathbf{u}} + [\mathbf{K}]\;\mathbf{u} = \mathbf{f},
+\end{equation}
+kjer sta $[\mathbf{M}]$ globalna masa matrika in $\ddot{\mathbf{u}}$ vektor pospeškov. Pri tem aproksimiramo neznano funkcijo povesa $u(x)$ na območju končnega elementa
+\begin{equation}
+    u(x) \approx U_1\,\Psi_1(x) + \Phi_2\,\Psi_2(x) + U_2\,\Psi_3(x) + \Phi_2\,\Psi_4(x),
+\end{equation}
+kjer so $\Psi_i(x)$ tako zvane oblikovne funkcije na območju [$0$,$L_e$] KE z dolžino $L_e$
+\begin{align}
+    \Psi_1(x) &= 1-3\frac{x^2}{L_e^2}+2\frac{x^3}{L_e^3}\\\nonumber
+    \Psi_2(x) &= x-2\frac{x^2}{L_e}+ \frac{x^3}{L_e^2}\\\nonumber
+    \Psi_3(x) &= 3\frac{x^2}{L_e^2}-2\frac{x^3}{L_e^3}\\\nonumber
+    \Psi_4(x) &= -\frac{x^2}{L_e}+ \frac{x^3}{L_e^2},
+\end{align}
+$U_i$ in $\Phi_i$ pa diskretne vrednosti pomikov in zasukov v vozliščih KE, ki sestavljajo vektor neznank
+\begin{equation}
+    \bm{u} = \left( U_1,\Phi_1,U_2,\Phi_2...U_N,\Phi_N \right)^T.
+\end{equation}
+Vektor zunanjih sil sestavljajo vozliščne vrednosti prečne sile in upogibnega momenta
+\begin{equation}
+    \bm{f} = \left( T_1,M_1,T_2,M_2...T_N,M_N \right)^T.
+\end{equation}
+Globalna togostna matrika $[\mathbf{K}]$ je dimenzije $2\,N\times 2\,N$ , kjer je $N$ število vozlišč, in je sestavljena iz lokalnih togostnih matrik KE $[\mathbf{K}_e]$, dimenzij $4\times 4$, ki so za primer Euler-Bernoullijevega nosilca odvisne le od snovnih lastnosti in dolžine KE ($L_e$)
+\begin{equation}
+    [\mathbf{K}_e] = \frac{E\,I}{L_e^3}\begin{bmatrix}
+        12 & 6\,L_e & -12 & 6\,L_e\\
+        6\,L_e & 4\,L_e^2 & -6\,L_e & 2\,L_e^2\\
+        -12 & -6\,L_e & 12 & -6\,L_e\\
+        6\,L_e & 2\,L_e^2 & -6\,L_e & 4\,L_e^2
+    \end{bmatrix}.
+\end{equation}
+
+Sistem enačb rešimo numerično, ker je togostna matrika pri MKE pasovna in redka, uporabimo rešitveni postopek za redke matrike. Iz znanega vektorja neznank $\mathbf{u}$ lahko izluščimo diskretne vrednosti pomikov in zasukov ter izračunamo ukrivljenost $\kappa$,  deformacije in napetosti ter notranjih upogibnih momentov in prečnih sil v posameznem KE
+\begin{align}\label{eq:def_nap_eb}
+    \varepsilon_{xx} &= -y\,\kappa = -y\,u''(x) = -y\,\theta'(x)\\
+    \varepsilon_{yy} &= \varepsilon_{zz} = -\nu\,\varepsilon_{xx}\\
+    \sigma_{xx} &= E\,\varepsilon_{xx} = E\,\varepsilon_{xx}\\
+    M_z &= E\,I\; u''(x) = E\,I\;\theta'(x)\\
+    T_y &= -E\,I\; u'''(x) = -M_z'(x)
+\end{align}
+Ostale komponente napetosti in deformacij so zaradi uporabljenih predpostavk ničelne.
+Torej, ko poznamo vozliščne pomike za KE na nevtralni osi nosilca, lahko določimo preostale veličine za poljubno točko po višini prereza ob predpostavki, da so vse lastnosti po debelini konstantne. Izračun se izvede v sredinski točni KE, napetosti in deformacije so znotraj KE konstantne.
+
+Za dinamični problem je potrebno še določiti masno matriko
+\begin{equation} %masna matrika
+    [\mathbf{K}_e] = \rho\,A\,L_e\begin{bmatrix}
+        \frac{1}{3} & 0 & 0 & \frac{1}{6} & 0 & 0\\
+        0 & \frac{13}{35} & \frac{11\,L_e}{210} & 0 & \frac{9}{70} & -\frac{13\,L_e}{420}\\
+        0 & \frac{11\,L_e}{210} & \frac{L_e^2}{105} & 0 & \frac{13\,L_e}{420} & -\frac{L_e^2}{140}\\
+        \frac{1}{6} & 0 & 0 & \frac{1}{3} & 0 & 0\\
+        0 & \frac{9}{70} & \frac{13\,L_e}{420} & 0 & \frac{13}{35} & -\frac{11\,L_e}{210}\\
+        0 & -\frac{13\,L_e}{420} & -\frac{L_e^2}{140} & 0 & -\frac{11\,L_e}{210} & \frac{L_e^2}{105}
+    \end{bmatrix},
+    \label{eq:masna}
+\end{equation}
+kjer je $\rho$ gostota. Pri tem lahko dodamo dodatni prostostni stopnji osnega pomika (stolpca in vrstice 1,4), če tega ne upoštevamo, ima masna matrika enako število neznank kot togostna.
+
+\subsection{Timošenkov nosilec}
+V tem primeru upoštevamo še vpliv striga, ki ga upoštevamo konstantnega preko celega preseka. Spremeni se togostna matrika KE, obstaja več oblik, ki se razlikujejo glede na obliko aproksimacije v KE. Poznamo obliki z eno~\ref{eq:TG1} in dvema~\ref{eq:TG2} Gaussovima integracijskima točkama in modificirano obliko~\ref{eq:TM}, ki upošteva kubično polinomsko aproksimacijo povesa in zasuka.
+\begin{align}
+    [\mathbf{K}_e] &= \frac{E\,I}{L_e}\begin{bmatrix}
+        0 & 0 & 0 & 0\\
+        0 & 1 & 0 & -1\\
+        0 & 0 & 0 & 0\\
+        0 & -1 & 0 & 1
+    \end{bmatrix} + \frac{G\,A_s}{L_e}\begin{bmatrix}
+        1 & \frac{L_e}{2} & 0 & \frac{L_e}{2}\\
+        \frac{L_e}{2} & \frac{L_e^2}{4} & -\frac{L_e}{2} & \frac{L_e^2}{4}\\
+        -1 & -\frac{L_e}{2} & 1 & -\frac{L_e}{2}\\
+        \frac{L_e}{2} & \frac{L_e^2}{4} & -\frac{L_e}{2} & \frac{L_e^2}{4}
+    \end{bmatrix}\label{eq:TG1}\\
+    [\mathbf{K}_e] &= \frac{E\,I}{L_e}\begin{bmatrix}
+        0 & 0 & 0 & 0\\
+        0 & 1 & 0 & -1\\
+        0 & 0 & 0 & 0\\
+        0 & -1 & 0 & 1
+    \end{bmatrix} + \frac{G\,A_s}{L_e}\begin{bmatrix}
+        1 & \frac{L_e}{2} & 0 & \frac{L_e}{2}\\
+        \frac{L_e}{2} & \frac{L_e^2}{3} & -\frac{L_e}{2} & \frac{L_e^2}{6}\\
+        -1 & -\frac{L_e}{2} & 1 & -\frac{L_e}{2}\\
+        \frac{L_e}{2} & \frac{L_e^2}{6} & -\frac{L_e}{2} & \frac{L_e^2}{3}
+    \end{bmatrix}\label{eq:TG2}\\
+    [\mathbf{K}_e] &= \frac{E\,I}{(1+C)\,L_e^3}\begin{bmatrix}
+        12 & 6\,L_e & -12 & 6\,L_e\\
+        6\,L_e & (4+C)\,L_e^2 & -6\,L_e & (2-C)\,L_e^2\\
+        -12 & -6\,L_e & 12 & -6\,L_e\\\label{eq:TM}
+        6\,L_e & (2-C)\,L_e^2 & -6\,L_e & (4+C)\,L_e^2
+    \end{bmatrix}, \quad C = \frac{12\,E\,I}{A_s\,G\,L_e^2}
+\end{align}
+
+V tem primeru imamo prisotno tudi strižno komponento deformacije in napetosti, zato se izrazi iz enačb~\ref{eq:def_nap_eb} dopolnijo z
+\begin{align}\label{eq:def_nap_timo}
+    \gamma_{xy} &= u' - \theta \\\nonumber
+    \sigma_{xy} &= G\,\gamma_{xy}.
+\end{align}
+V zgornjih izrazih predstavljajo veličine snoven lastnosti: $G=\frac{E}{2(1+\nu)}$ strižni modul, $E$ modul elastičnosti/Youngov modul, $\nu$ Poissonov količnik; in geometrijske lastnosti: $A_s=A\,\kappa$ produkt površine preseka in koeficienta oblike prereza, ki za pravokotni presek znaša $\kappa = \frac{10\,(1+\nu)}{12+11\,\nu} $, $L_e$ dolžina končnega elementa, $I$ drugi (vztrajnostni) moment prereza v y-smeri.
+
+\begin{table}[H]
+    \centering
+    \caption{Snovne in geometrijske lastnosti}
+    \label{tab:lastnosti}
+    \begin{tabular}{c|c|c|c}
+        veličina & simbol & vrednost & enota \\\hline
+        dolžina nosilca & $L$ & 100 & mm \\
+        širina nosilca & $a$ & 10 & mm \\
+        debelina/višina nosilca & $h$ & 10 & mm \\
+        modul elastičnosti & $E$ & 100 & MPa \\
+        Poissonov količnik & $\nu$ & 0.3 & -- \\
+        gostota & $\rho$ & 1 & kg/mm$^3$ \\
+        upogibna sila na prostem robu & $F_0$ & 1 & N \\
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Pomen kratic}
+    \label{tab:oznake}
+    \begin{tabular}{c|l}
+        kratica & pomen \\\hline
+        EB & Euler-Bernoulli-jev nosilec / teorija \\
+        TM & Timošenkov nosilec upoštevajoč modificirano obliko \\
+        TG1 & Timošenkov nosilec z eno Gaussovo integracijsko točko \\
+        TG2 & Timošenkov nosilec z dvema Gaussovima integracijskima točkama \\
+        KE & končni element \\
+        % MKE & metoda končnih elementov \\
+    \end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\FloatBarrier
+
+\section{Rezultati}
+
+\subsection{Pomiki}
+
+Na sliki~\ref{fig:polje_poves} je prikazano polje pomikov po polovičnem prerezu Euler-Bernoulli nosilca, saj je prerez pravokoten ter zato geometrijsko simetričen, snovne lastnosti pa so homogene. Uporabljenih je bilo 100 KE in 100 integracijskih točk po višini prereza. Prikazani sta različni dolžini nosilca, $L=300$~mm in $L=200$~mm, pri čemer je za vizualizacijo upoštevan tudi zasuk prereza okoli nevtralne osi, saj uporabljena Euler-Bernoullijeva teorija predpostavlja, da je prerez pravokoten na nevtralno os nosilca.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{.45}{./zaklj_slike/polje_EB_300}{$L = 300$~mm}{subfig:polje_L300}
+    \subfig{.5}{./zaklj_slike/polje_TG2_200}{$L = 200$~mm}{subfig:polje_L200}
+    \caption{Polje pomikov po polovičnem prerezu Euler-Bernoulli nosilca.}
+    \label{fig:polje_poves}
+\end{figure}
+
+Na sliki~\ref{fig:poves} je prikazana primerjava povesov nosilca med Euler-Bernoullijevo in Timošenkovo teorijo upogiba nosilca, kjer lahko uporabimo različne formulacije, vendar vse rezultirajo v vizualno enak poves. Na sliki~\ref{fig:napaka_timo_U} je lahko vidna ta napaka. Opazimo, da sta formulaciji z Gaussovo integracijo (TG1 in TG2) točnejši od modificirane formulacije (TM). Uporabljenih je bilo 100 KE, napaka pa je prikazano po dolžini nosilca, kjer narašča proti prostemu robu, kjer je največja obremenitev in posledično največji poves. Napaka pada z večanjem števila KE.
+
+
+\fig{ht}{0.75}{./zaklj_slike/timo}{Primerjava napake pomikov različnih Timošenkovih formulacij z analitičnim rešitvami}{fig:napaka_timo_U}
+
+Do očitnejših razlik pride med Timošenkovo in EB teorijo v primeru vitkih nosilcev, kjer vpliv striga ni več zanemarljiv, kar lahko opazimo na sliki~\ref{subfig:poves_L10}, dočim je na sliki~\ref{subfig:poves_L100} razlika komaj opazna. Nekako velja, je EB teorija primerna za nosilce z razmerjem med dolžino in debelino nosilca večje od 10 oz. 20, vrednost variira po literaturi.
+
+\begin{figure}
+    \minifig{0.48}{./zaklj_slike/zasuk_EB_N10000}{Napaka zasukov glede na dolžino nosilca za EB nosilec z 10~000 KE}{fig:napaka_x_phi}
+    \minifig{0.48}{./zaklj_slike/napaka_konv_phi_EB}{Odvisnost napake zasuka od števila končnih elementov}{fig:napaka_phi}
+\end{figure}
+% \fig{h}{0.5}{./zaklj_slike/zasuk_EB_N10000}{Napaka zasukov glede na dolžino nosilca za Euler-Bernoulli nosilec z 10~000 končnimi elementi}{fig:napaka_x_phi}
+
+\begin{figure}[ht]
+    \centering
+    \subfig{1}{./zaklj_slike/poves_L10}{$L = 10$~mm}{subfig:poves_L10}
+    \subfig{1}{./zaklj_slike/poves_L100}{$L = 100$~mm}{subfig:poves_L100}
+    \caption{Poves nosilca -- primerjava med Euler-Bernoullijevo in Timošenkovo teorijo}
+    \label{fig:poves}
+\end{figure}
+
+Če pogledamo napako izračunanega povesa in zasuka glede na število vozlišč (število KE), kar je prikazano na sliki~\ref{fig:napaka_povesi}, opazimo, pričakovano obnašanje po TG1 in TG2 formulaciji, kjer je konvergenca povesov drugega reda. Napaka zasuka konvergira k specifični vrednosti, kar je presenetljivo, vendar nas pomirja dejstvo, da zasuki niso naš primarni interes. Še bolj presenetljivo je, da napaka povesov pri EB in TM divergira. Pri TM so sicer vrednosti precej majhne (pod $10^{-8}$), in verjetno posledica numerične napake. Pomirja nas dejstvo, da se napaka zasukov obnaša podobno kot pri TG1 in TG2. Po drugi strani pa EB napaka povesa narašča hitreje in dosega višje vrednosti! Možna je tudi napaka v izrazu za analitično rešitev, vendar je žal nisem odkril.
+
+Opomba: za EB napaka zasuka ni prikazana na sliki \ref{fig:napaka_phi}, ker so vrednosti drugačne od TM in bi slika \ref{fig:napaka_povesi} postala nepregledna. Napaka zasuka v odvisnosti od dolžine EB nosilca je prikazana na sliki~\ref{fig:napaka_x_phi}.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{1}{./zaklj_slike/napaka_konv_TG}{Timošenko nosilec -- Gaussova integracija}{subfig:napaka_povesi_TG}
+    \subfig{1}{./zaklj_slike/napaka_konv_EBTM}{Euler-Bernoulli, Timošenko modificirana oblika}{subfig:napaka_povesi_EBTM}
+    \caption{Napaka povesov in zasukov glede na število vozlišč končnih elementov}
+    \label{fig:napaka_povesi}
+\end{figure}
+% \fig{H}{1}{./zaklj_slike/napaka_konv_TG}{Napaka konvergenca}{}
+% \fig{H}{1}{./zaklj_slike/napaka_konv_EBTM}{Napaka konvergenca}{}
+
+\FloatBarrier
+Na sliki~\ref{fig:cas} je prikazana še računska zahtevnost, ki ni odvisna od izbranega tipa KE, temveč predvsem od števila KE. Pri prvi iteraciji lahko opazimo, da je računski čas nekoliko daljši, kar je nepričakovano in bi verjetno lahko odpravili z inicializacijo funkcij, saj nato računski čas pričakovano narašča.
+\begin{figure}[h]
+    \centering
+    \subfig{0.48}{./zaklj_slike/cas_konv_TG}{Timošenko nosilec -- Gaussova integracija}{subfig:cas_TG}
+    \subfig{0.48}{./zaklj_slike/cas_konv_EBTM}{Euler-Bernoulli, Timošenko mod. oblika}{subfig:cas_EBTM}
+    \caption{Računski čas glede na število vozlišč končnih elementov}
+    \label{fig:cas}
+\end{figure} 
+
+\FloatBarrier
+\subsection{Notranje veličine}
+
+Na sliki~\ref{fig:deformacije} so prikazane največje deformacije po dolžini nosilca, ki se nahajajo na zgornji površini nosilca (pozitivna deformacija -- nateg) in na spodnji (negativna deformacija -- tlak). Opazimo, da so vrednosti po EB in Timošenko enake za normalne komponente deformacije. Pri Timošenku je prisoten tudi strig.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/deform_EB}{Euler-Bernoulli}{subfig:defor_EB}
+    \subfig{0.48}{./zaklj_slike/deform_TG1}{Timošenko}{subfig:defor_TG1}
+    \caption{Največje deformacije po dolžini nosilca}
+    \label{fig:deformacije}
+\end{figure}
+
+Na sliki~\ref{fig:napetosti} so prikazane napetosti po dolžini nosilca, ki se nahajajo na zgornji površini nosilca (pozitivna napetost -- nateg) in na spodnji (negativna napetost -- tlak). Prav tako je prikazana von Mises-ova primerjalna napetost, kjer se lepo vidi doprinos strižne komponente pri Timošenku.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/napetosti_EB}{Euler-Bernoulli}{subfig:nap_EB}
+    \subfig{0.48}{./zaklj_slike/napetosti_TG1}{Timošenko}{subfig:nap_TG1}
+    \caption{Največje napetosti po dolžini nosilca}
+    \label{fig:napetosti}
+\end{figure}
+
+Na sliki~\ref{fig:napetosti_presek} so prikazane napetosti po višini prereza nosilca v konzolni podpori (x=0), kjer so vrednosti najvišje. Opazimo, da je pri Timošenkovi teoriji prisotna tudi strižna komponenta napetosti, ki je konstantna po višini prereza, dočim je normalna komponenta napetosti linearno porazdeljena po višini prereza.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{.8}{./zaklj_slike/napetosti_prerez_EB}{Euler-Bernoulli}{subfig:nap_EB}
+    \subfig{.8}{./zaklj_slike/napetosti_prerez_TG1}{Timošenko}{subfig:nap_TG1}
+    \caption{Napetosti po višini preseka nosilca v konzolni podpori (x=0)}
+    \label{fig:napetosti_presek}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfig{.8}{./zaklj_slike/MT_EB_L10}{Euler-Bernoulli}{subfig:MT_EB}
+    \subfig{.8}{./zaklj_slike/MT_TG1_L10}{Timošenko}{subfig:MT_TG1}
+    \caption{Notranji momenti in prečne sile po dolžini nosilca}
+    \label{fig:MT}
+\end{figure}
+
+Na sliki~\ref{fig:MT} so prikazani notranji upogibni momenti in prečne sile po dolžini nosilca. Pričakovane teoretične vrednosti so konstantna prečna sila, enaka obremenitvi in linearno naraščajoč upogibni moment, največji na mestu konzolne podpore in enak nič na prostem robu. Opazimo lahko, da so vrednosti zelo blizu teoretičnim, saj so pri prečni sili odstopanja le reda velikosti -11.
+
+Poleg tega preverimo še konvergenco pri povečevanju števila KE, kar je vidno na sliki~\ref{fig:napaka_momenti}. Pogrešek je v primeru notranjega upogibnega momenta za TG2 in TM ter prečno silo pri TG1 in TG2 reda velikosti numerične napake, v primeru momenta in TG1 ter prečne sile in TM pa konvergira z redom velikosti 2. V preostalih primerih je napaka višja od pričakovane.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{1}{./zaklj_slike/napaka_konv_MT_TG}{Timošenko nosilec -- Gaussova integracija}{subfig:napaka_momenti_TG}
+    \subfig{1}{./zaklj_slike/napaka_konv_MT_EBTM}{Euler-Bernoulli, Timošenko modificirana oblika}{subfig:napaka_momenti_EBTM}
+    \caption{Napaka notranjih prečnih sil in notranjih upogibnih momentov glede na število vozlišč končnih elementov}
+    \label{fig:napaka_momenti}
+\end{figure}
+
+\FloatBarrier
+Na spodnji sliki \ref{fig:poves_RP} so prikazane upogibnice za različne primere obremenitev nosilca: 
+\begin{itemize}
+    \item $F_0(L)$ točkovna sila na prostem koncu,
+    \item $F_0(L/2)$ točkovna sila na sredini nosilca,
+    \item $q_0$ enakomerno porazdeljena sila po dolžini nosilca,
+    \item $M_0(L/2)$ točkovni upogibni moment na sredini nosilca.
+\end{itemize}
+Z obstoječo kodo je bilo te obremenitve trivialno implementirati, potrebno je le spremeniti indeks vozlišča, v katerem se doda obremenitev. Moment se doda v prostostno stopnjo za zasuk, porazdeljeno obremenitev pa sem upošteval kot ekvivalentne vozliščne sile v vozliščih KE.
+
+\fig{ht}{.9}{./zaklj_slike/poves_RP}{Različni primeri robnih pogojev za konzolno vpet nosilec}{fig:poves_RP}
+\fig{ht}{.9}{./zaklj_slike/poves_clenki}{Različni primeri robnih pogojev za členkasto vpet nosilec}{fig:poves_clenki}
+
+\newpage
+\FloatBarrier
+\subsection{Zgoščevanje elementov}
+
+Na spodnji sliki \ref{fig:zgoščevanje} so prikazani različni primeri poskusov zgostitve KE. S tem poizkušamo izboljšati končno rešitev. Prvi je zgoščevanje na vpetem robu, kjer določimo razmerje med skrajno desnim in skrajno levim KE 
+\begin{equation}
+    ratio = \frac{L_{D}}{L_{L}},
+\end{equation}
+ki v prikazanem primeru znaša $ratio=5$. Poizkusimo tudi z zgoščevanjem na obeh straneh, kje uporabimo kosinusni val za skaliranje dolžin KE.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.3}{./zaklj_slike/vozlisca_enakomerno}{Enakomerna razporeditev vozlišč}{}
+    \subfig{0.3}{./zaklj_slike/vozlisca_zgostL}{Zgostitev na vpetem robu}{}
+    \subfig{0.3}{./zaklj_slike/vozlisca_zgost_rob}{Zgostitev na obeh robovih}{}
+    \caption{Različne razporeditve vozlišč končnih elementov}
+    \label{fig:zgoščevanje}
+\end{figure}
+
+Na sliki \ref{fig:errx_zgosc} je prikazan potek napake povesa glede na analitično rešitev za različne gostote zgoščevanja KE. Opazimo, da parameter $ratio$ ne vpliva bistveno na napako. Edino pri EB in obojestranskim zgoščevanjem je opazna povečana napaka. Za izračun je bilo uporabljenih 50 KE.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/zgost_errx_1}{$ratio = 1$}{}
+    \subfig{0.48}{./zaklj_slike/zgost_errx_5}{$ratio = 5$}{}
+    \subfig{0.48}{./zaklj_slike/zgost_errx_10}{$ratio = 10$}{}
+    \subfig{0.48}{./zaklj_slike/zgost_errx_obojestr}{Obojestransko zgoščevanje}{}
+    \caption{Napaka povesa glede na analitično rešitev}
+    \label{fig:errx_zgosc}
+\end{figure}
+
+Na sliki \ref{fig:napaka_zgost} lahko opazimo, da zgoščevanje KE ne vpliva bistveno na konvergenco. Ta se še vedno giblje okoli reda velikosti 2. Za izračun smo uporabili $ratio=5$ in TG1 tip KE. Malenkost bolje se obnese zgoščevanje proti le enemu robu.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{.8}{./zaklj_slike/napaka_konv_zgost1}{Zgostitev na vpetem robu, $ratio=5$}{}
+    \subfig{.8}{./zaklj_slike/napaka_konv_zgost2}{Zgostitev na obeh robovih}{}
+    \caption{Napaka glede na število vozlišč končnih elementov pri zgoščevanju}
+    \label{fig:napaka_zgost}
+\end{figure}
+
+Na sliki \ref{fig:napaka_ratio} sta prikazani napaki povesov in zasukov v odvisnosti od razmerja velikosti KE. Opazimo lahko da le ta ne vpliva bistveno na napako, iz slike \ref{fig:cas_ratio} pa tudi, da ne vpliva na računski čas. Za izračun smo uporabili 1000 KE tipa TG1.
+
+\fig{ht}{0.7}{./zaklj_slike/napaka_ratio}{Odvisnost napake povesa od ratio}{fig:napaka_ratio}
+\fig{ht}{0.6}{./zaklj_slike/cas_ratio}{Odvisnost računskega časa od ratio}{fig:cas_ratio}
+
+\FloatBarrier
+\subsection{Dinamična analiza}
+
+Uporabljenih je bilo 100 KE z dvema prostostnima stopnjama na vozlišče, kjer smo iz masne matrike (enačba \ref{eq:masna}) odstranili prostostni stopnji osnega pomika, da je masna matrika dimenzij $2\,N\times 2\,N$. Osni pomiki namreč omogočajo le lastne oblike v osni smeri, ki pa niso predmet naše analize.
+
+Na spodnji sliki \ref{fig:last_vpet} vidimo lastne oblike in frekvence obojestransko členkasto vpetega nosilca, kjer smo onemogočili prečne pomike, zasuki pa so dovoljeni. Če bi želeli simulirati konzolno vpetje bi potrebovali malenkost drugačno formulacijo. Prikazane so maksimalne vrednosti pomikov, priložene pa so tudi animacije pomikov v času. Opazimo, da če želimo simulirati višje lastne oblike, potrebujemo dovolj gosto mrežo KE, saj, kot je razvidno iz slike \ref{fig:mode99} za lastno obliko št. 99, popis ni več dovolj natančen, saj so oscilacije nosilca večje od dolžine KE.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_1}{Mode 1, $f_0 = 0,010$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_2}{Mode 2, $f_0 = 0,028$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_3}{Mode 3, $f_0 = 0,056$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_4}{Mode 4, $f_0 = 0,092$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_5}{Mode 5, $f_0 = 0,137$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/mode_6}{Mode 6, $f_0 = 0,192$~Hz}{}
+    \caption{Lastne oblike in frekvence nosilca, vpetega na obeh krajiščih}
+    \label{fig:last_vpet}
+\end{figure}
+
+Na sliki \ref{fig:last_prodtD} so prikazane lastne oblike in frekvence nosilca, členkasto vpetega levo in prostega desno, kjer je opaziti, da so lastne frekvence nižje, amplitude pa večje, kot pri obojestransko vpetem nosilcu. Na sliki \ref{fig:last_prost} pa so prikazane lastne oblike in frekvence nosilca, prostega na obeh krajiščih, kjer so frekvence še nižje kot pri prejšnjem primeru. Prav tako se prvi dve lastni obliki izrodita, sj postaneta toga premika nosilca.
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_1}{Mode 1, $f_0 = 0,0016$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_2}{Mode 2, $f_0 = 0,0101$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_3}{Mode 3, $f_0 = 0,0283$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_4}{Mode 4, $f_0 = 0,0555$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_5}{Mode 5, $f_0 = 0,0918$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prostoD_mode_6}{Mode 6, $f_0 = 0,1371$~Hz}{}
+    \caption{Lastne oblike in frekvence nosilca, vpetega levo in prostega desno}
+    \label{fig:last_prodtD}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_1}{Mode 1, $f_0 = 2\cdot 10^{-7}$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_2}{Mode 2, $f_0 = 2\cdot 10^{-7}$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_3}{Mode 3, $f_0 = 0,010$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_4}{Mode 4, $f_0 = 0,028$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_5}{Mode 5, $f_0 = 0,056$~Hz}{}
+    \subfig{0.48}{./zaklj_slike/dinamika/prosto_mode_6}{Mode 6, $f_0 = 0,092$~Hz}{}
+    \caption{Lastne oblike in frekvence nosilca, prostega na obeh krajiščih}
+    \label{fig:last_prost}
+\end{figure}
+
+\fig{ht}{0.45}{./zaklj_slike/dinamika/mode_99}{Lastna oblika št. 99, obojestransko vpet nosilec}{fig:mode99}

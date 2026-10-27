@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from scipy.integrate import solve_ivp
 import matplotlib.animation as animation
 from scipy.signal import windows, find_peaks
-from alignYaxes import *
+from alignAxes import *
 from ProcessPriority import *
 from numba import jit
 from matplotlib.ticker import MaxNLocator
